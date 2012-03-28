@@ -15,7 +15,11 @@ func (s *Solver) GetBest(getFitness func(string) int, display func(string), gene
 	} else {
 		rand.Seed(time.Now().UnixNano())
 	}
-	var bestGenes = generateParent(geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
+	
+	cs := make(chan string)
+	go generateChromosome(cs, geneSet, numberOfGenesPerChromosome)
+	
+	var bestGenes = generateParent(cs, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 	value := getFitness(bestGenes)
 	var bestValue = value
 	
@@ -46,21 +50,24 @@ func mutateParent(parent, geneSet string) string {
 	return current
 }
 
-func generateParent(geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
+func generateParent(cs chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
+	
 	s := ""
 	for i := 0; i < numberOfChromosomes; i++ {
-		chromosome := generateChromosome(geneSet, numberOfGenesPerChromosome)
+		chromosome := <- cs
 		s += chromosome
 	}
 	return s
 }
 
-func generateChromosome(geneSet string, numberOfGenesPerChromosome int) string {
-	c := ""
-	for i := 0; i < numberOfGenesPerChromosome; i++ {
-		index := rand.Intn(len(geneSet))
-		c += geneSet[index:1+index]
+func generateChromosome(cs chan string, geneSet string, numberOfGenesPerChromosome int) {
+	for {
+		c := ""
+		for i := 0; i < numberOfGenesPerChromosome; i++ {
+			index := rand.Intn(len(geneSet))
+			c += geneSet[index:1+index]
+		}
+		cs <- c
 	}
-	return c
 }
 
