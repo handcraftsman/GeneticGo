@@ -6,10 +6,15 @@ import (
 )
 
 type Solver struct {
+	randSeed int64
 }
 
 func (s *Solver) GetBest(getFitness func(string) int, display func(string), geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
-	rand.Seed(time.Now().UnixNano())
+	if s.randSeed > 0 {
+		rand.Seed(s.randSeed)
+	} else {
+		rand.Seed(time.Now().UnixNano())
+	}
 	var bestGenes = generateParent(geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 	value := getFitness(bestGenes)
 	var bestValue = value
