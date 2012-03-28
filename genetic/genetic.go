@@ -15,16 +15,19 @@ func (s *Solver) GetBest(getFitness func(string) int, display func(string), gene
 	} else {
 		rand.Seed(time.Now().UnixNano())
 	}
+
+	nextGene := make(chan string)
+	go generateGene(nextGene, geneSet)
 	
-	cs := make(chan string)
-	go generateChromosome(cs, geneSet, numberOfGenesPerChromosome)
+	nextChromosome := make(chan string)
+	go generateChromosome(nextChromosome, nextGene, geneSet, numberOfGenesPerChromosome)
 	
-	var bestGenes = generateParent(cs, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
+	var bestGenes = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 	value := getFitness(bestGenes)
 	var bestValue = value
 	
 	for bestValue < numberOfChromosomes {
-		current := mutateParent(bestGenes, geneSet)
+		current := mutateParent(bestGenes, geneSet, nextGene)
 		value := getFitness(current)
 		if value > bestValue {
 			display(current)
@@ -36,38 +39,41 @@ func (s *Solver) GetBest(getFitness func(string) int, display func(string), gene
 	return bestGenes
 }
 
-func mutateParent(parent, geneSet string) string {
-	geneSetIndex := rand.Intn(len(geneSet))
+func mutateParent(parent, geneSet string, nextGene chan string) string {
 	parentIndex := rand.Intn(len(parent))
-	current := ""
+	child := ""
 	if parentIndex > 0 {
-		current += parent[:parentIndex]
+		child += parent[:parentIndex]
 	}
-	current += geneSet[geneSetIndex:1+geneSetIndex]
+	child += <- nextGene
 	if parentIndex+1 < len(parent) {
-		current += parent[parentIndex+1:]
+		child += parent[parentIndex+1:]
 	}
-	return current
+	return child
 }
 
-func generateParent(cs chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
+func generateParent(nextChromosome chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
 	
 	s := ""
 	for i := 0; i < numberOfChromosomes; i++ {
-		chromosome := <- cs
-		s += chromosome
+		s += <- nextChromosome
 	}
 	return s
 }
 
-func generateChromosome(cs chan string, geneSet string, numberOfGenesPerChromosome int) {
+func generateChromosome(nextChromosome, nextGene chan string, geneSet string, numberOfGenesPerChromosome int) {
 	for {
 		c := ""
 		for i := 0; i < numberOfGenesPerChromosome; i++ {
-			index := rand.Intn(len(geneSet))
-			c += geneSet[index:1+index]
+			c += <- nextGene
 		}
-		cs <- c
+		nextChromosome <- c
 	}
 }
 
+func generateGene(nextGene chan string, geneSet string) {
+	for {
+		index := rand.Intn(len(geneSet))
+		nextGene <- geneSet[index:index+1]	
+	}
+}
