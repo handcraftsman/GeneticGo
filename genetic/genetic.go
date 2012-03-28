@@ -6,14 +6,18 @@ import (
 )
 
 type Solver struct {
-	randSeed int64
+	RandSeed int64
+	MaxSecondsToRunWithoutImprovement float64
 }
 
-func (s *Solver) GetBest(getFitness func(string) int, display func(string), geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
-	if s.randSeed > 0 {
-		rand.Seed(s.randSeed)
+func (solver *Solver) GetBest(getFitness func(string) int, display func(string), geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
+	if solver.RandSeed > 0 {
+		rand.Seed(solver.RandSeed)
 	} else {
 		rand.Seed(time.Now().UnixNano())
+	}
+	if solver.MaxSecondsToRunWithoutImprovement == 0 {
+		solver.MaxSecondsToRunWithoutImprovement = 20
 	}
 
 	nextGene := make(chan string)
@@ -22,21 +26,24 @@ func (s *Solver) GetBest(getFitness func(string) int, display func(string), gene
 	nextChromosome := make(chan string)
 	go generateChromosome(nextChromosome, nextGene, geneSet, numberOfGenesPerChromosome)
 	
-	var bestGenes = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
-	value := getFitness(bestGenes)
-	var bestValue = value
+	start := time.Now()
 	
-	for bestValue < numberOfChromosomes {
-		current := mutateParent(bestGenes, geneSet, nextGene)
-		value := getFitness(current)
-		if value > bestValue {
+	var bestParent = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
+	fitness := getFitness(bestParent)
+	var bestFitness = fitness
+	
+	for time.Since(start).Seconds() < solver.MaxSecondsToRunWithoutImprovement {
+		current := mutateParent(bestParent, geneSet, nextGene)
+		fitness := getFitness(current)
+		if fitness > bestFitness {
 			display(current)
-			bestValue = value
-			bestGenes = current
+			bestFitness = fitness
+			bestParent = current
+			start = time.Now()
 		}
 	}
 
-	return bestGenes
+	return bestParent
 }
 
 func mutateParent(parent, geneSet string, nextGene chan string) string {

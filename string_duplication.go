@@ -24,6 +24,7 @@ func main() {
 	}
 	
 	var solver = new(genetic.Solver)
+	solver.MaxSecondsToRunWithoutImprovement = 1
 	
 	var best = solver.GetBest(calc, disp, genes, len(target), 1)
 	println(best)
