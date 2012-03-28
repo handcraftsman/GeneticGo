@@ -2,12 +2,14 @@ package genetic
 
 import (
 	"math/rand";
+	"time";
 )
 
 type Solver struct {
 }
 
 func (s *Solver) GetBest(calculate func(string) int, disp func(string), genes string, length int) string {
+	rand.Seed(time.Now().UnixNano())
 	var bestGenes = generateParent(genes, length)
 	value := calculate(bestGenes)
 	var bestValue = value

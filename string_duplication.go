@@ -2,13 +2,11 @@ package main
 
 import (
 	"fmt";
-	"math/rand";
 	"time";
 	"./genetic"
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	const genes = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!."
 	target := "Not all those who wander are lost."
 	calc := func (current string) int {
