@@ -1,6 +1,7 @@
 package genetic
 
 import (
+	"fmt";
 	"math/rand";
 	"time";
 )
@@ -19,6 +20,7 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 	if solver.MaxSecondsToRunWithoutImprovement == 0 {
 		solver.MaxSecondsToRunWithoutImprovement = 20
 	}
+	fmt.Printf("\tSolver will run at most %v second(s) without improvement.\n", solver.MaxSecondsToRunWithoutImprovement)
 
 	nextGene := make(chan string)
 	go generateGene(nextGene, geneSet)
