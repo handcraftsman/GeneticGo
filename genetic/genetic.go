@@ -8,17 +8,17 @@ import (
 type Solver struct {
 }
 
-func (s *Solver) GetBest(calculate func(string) int, disp func(string), genes string, length int) string {
+func (s *Solver) GetBest(getFitness func(string) int, display func(string), geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
 	rand.Seed(time.Now().UnixNano())
-	var bestGenes = generateParent(genes, length)
-	value := calculate(bestGenes)
+	var bestGenes = generateParent(geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
+	value := getFitness(bestGenes)
 	var bestValue = value
 	
-	for bestValue < length {
-		current := mutateParent(bestGenes, genes)
-		value := calculate(current)
+	for bestValue < numberOfChromosomes {
+		current := mutateParent(bestGenes, geneSet)
+		value := getFitness(current)
 		if value > bestValue {
-			disp(current)
+			display(current)
 			bestValue = value
 			bestGenes = current
 		}
@@ -27,25 +27,35 @@ func (s *Solver) GetBest(calculate func(string) int, disp func(string), genes st
 	return bestGenes
 }
 
-func mutateParent(parent, genes string) string {
-	geneIndex := rand.Intn(len(genes))
+func mutateParent(parent, geneSet string) string {
+	geneSetIndex := rand.Intn(len(geneSet))
 	parentIndex := rand.Intn(len(parent))
 	current := ""
 	if parentIndex > 0 {
 		current += parent[:parentIndex]
 	}
-	current += genes[geneIndex:1+geneIndex]
+	current += geneSet[geneSetIndex:1+geneSetIndex]
 	if parentIndex+1 < len(parent) {
 		current += parent[parentIndex+1:]
 	}
 	return current
 }
 
-func generateParent(genes string, length int) string {
+func generateParent(geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
 	s := ""
-	for i := 0; i < length; i++ {
-		index := rand.Intn(len(genes))
-		s += genes[index:1+index]
+	for i := 0; i < numberOfChromosomes; i++ {
+		chromosome := generateChromosome(geneSet, numberOfGenesPerChromosome)
+		s += chromosome
 	}
 	return s
 }
+
+func generateChromosome(geneSet string, numberOfGenesPerChromosome int) string {
+	c := ""
+	for i := 0; i < numberOfGenesPerChromosome; i++ {
+		index := rand.Intn(len(geneSet))
+		c += geneSet[index:1+index]
+	}
+	return c
+}
+

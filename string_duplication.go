@@ -25,7 +25,7 @@ func main() {
 	
 	var solver = new(genetic.Solver)
 	
-	var best = solver.GetBest(calc, disp, genes, len(target))
+	var best = solver.GetBest(calc, disp, genes, len(target), 1)
 	println(best)
 	
 	fmt.Print("Total time: ")
