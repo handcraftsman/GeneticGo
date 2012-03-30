@@ -34,27 +34,65 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 	fitness := getFitness(bestParent)
 	var bestFitness = fitness
 	
+	strategies := []func (parent, geneSet string, nextGene chan string) string { mutate, swap }
+	
 	for time.Since(start).Seconds() < solver.MaxSecondsToRunWithoutImprovement {
-		current := mutateParent(bestParent, geneSet, nextGene)
+		strategyIndex := rand.Intn(len(strategies))
+		strategy := strategies[strategyIndex]
+		current := strategy(bestParent, geneSet, nextGene)
 		fitness := getFitness(current)
-		if fitness > bestFitness {
-			display(current)
-			bestFitness = fitness
+		if fitness >= bestFitness {
+			if fitness > bestFitness {
+				display(current)
+				start = time.Now()
+				bestFitness = fitness
+			}
 			bestParent = current
-			start = time.Now()
 		}
 	}
 
 	return bestParent
 }
 
-func mutateParent(parent, geneSet string, nextGene chan string) string {
+func swap(parent, geneSet string, nextGene chan string) string {
+	parentIndexA := rand.Intn(len(parent))
+	parentIndexB := rand.Intn(len(parent))
+	for ; parentIndexA == parentIndexB; parentIndexB = rand.Intn(len(parent)) {}
+	
+	parentIndexA, parentIndexB = sort(parentIndexA, parentIndexB)
+	
+	child := ""
+	if parentIndexA > 0 {
+		child += parent[:parentIndexA]
+	}
+	
+	child += parent[parentIndexB:parentIndexB+1]
+	
+	if parentIndexB - parentIndexA > 1 {
+		child += parent[parentIndexA+1:parentIndexB]
+	}
+
+	child += parent[parentIndexA:parentIndexA+1]
+
+	if parentIndexB+1 < len(parent) {
+		child += parent[parentIndexB+1:]
+	}
+
+	return child
+}
+
+func mutate(parent, geneSet string, nextGene chan string) string {
 	parentIndex := rand.Intn(len(parent))
 	child := ""
 	if parentIndex > 0 {
 		child += parent[:parentIndex]
 	}
-	child += <- nextGene
+	
+	newGene := <- nextGene
+	currentGene := parent[parentIndex:parentIndex+1]
+	for ; newGene == currentGene ; newGene = <- nextGene {}
+	child += newGene
+	
 	if parentIndex+1 < len(parent) {
 		child += parent[parentIndex+1:]
 	}
@@ -85,4 +123,11 @@ func generateGene(nextGene chan string, geneSet string) {
 		index := rand.Intn(len(geneSet))
 		nextGene <- geneSet[index:index+1]	
 	}
+}
+
+func sort(a, b int) (int, int) {
+	if a < b {
+		return a,b
+	}
+	return b,a
 }
