@@ -8,8 +8,10 @@ import (
 	"./genetic"
 )
 
+const North, West, South, East, Same int = -1, -1, 1, 1, 0
+const boardWidthHeight = 8
+
 func main() {
-	const boardWidthHeight = 8
 	genes := ""
 	for i := 0; i < boardWidthHeight; i++ {
 		genes += strconv.Itoa(i)
@@ -23,10 +25,10 @@ func main() {
 	
 	disp := func (current string) {
 		display(current, boardWidthHeight)
-		fmt.Print(current)
-		fmt.Print("\t")
-		fmt.Print(getFitness(current, boardWidthHeight))
-		fmt.Print("\t")
+		print(current)
+		print("\t")
+		print(getFitness(current, boardWidthHeight))
+		print("\t")
 		fmt.Println(time.Since(start))
 	}
 	
@@ -35,123 +37,132 @@ func main() {
 	
 	var best = solver.GetBest(calc, disp, genes, boardWidthHeight, 2)
 	disp(best)
-	fmt.Print("Total time: ")
+	print("Total time: ")
 	fmt.Println(time.Since(start))
 }
 
 func display(current string, boardWidthHeight int) {
 	board := convertGenesToBoard(current)
+	defer func() {board = nil}()
+	
 	for y := 0; y < boardWidthHeight; y++ {
 		for x:= 0; x < boardWidthHeight; x++ {
 			key := strconv.Itoa(x) + "," + strconv.Itoa(y)
 			if board[key] {
-				fmt.Print("Q ")
+				print("Q ")
 			} else {
-				fmt.Print(". ")
+				print(". ")
 			}
 		}
-		fmt.Println("")
+		println()
 	}
 }
 
 func getFitness(current string, boardWidthHeight int) int {
-	fitness := 0
-	board := convertGenesToBoard(current)
-	for coordinate, _ := range ( board ) {
+	distinctX := make(map[int]bool)
+	defer func() {distinctX = nil}()
 	
+	distinctY := make(map[int]bool)
+	defer func() {distinctY = nil}()
+
+	board := convertGenesToBoard(current)
+	defer func() {board = nil}()
+
+	safeQueens := 0
+	for coordinate, _ := range ( board ) {
+		parts := strings.Split(coordinate, ",")
+		
+		x, err := strconv.Atoi(parts[0])
+		if err != nil { panic(err) }
+		distinctX[x] = true
+		
+		y, err := strconv.Atoi(parts[1])
+		if err != nil { panic(err) }
+		distinctY[y] = true
+		
 		nextPosition := make(chan string)
-		go getAttackablePositions(coordinate, boardWidthHeight, nextPosition)
-		n := <- nextPosition
-        for {
-			if len(n) == 0 {
-				fitness++
-				break;
-			}
+		defer func() {nextPosition = nil}()
+		
+		quit := false
+		go getAttackablePositions(x, y, boardWidthHeight, nextPosition, &quit)
+		
+		isValid := true
+        for n := range (nextPosition) {
 			if board[n] {
+				quit = true
+				<- nextPosition
+				isValid = false
 				break
 			}
-			n = <- nextPosition
 		}
-		nextPosition = nil
+		if isValid {
+			safeQueens++
+		}
     }
-	fitness += 10 * len(board)
+	fitness := 1000 * len(board) + safeQueens * 100 + len(distinctX) * len(distinctY)
+	
 	return fitness
 }
 
-func getAttackablePositions(coordinate string, boardWidthHeight int, nextPosition chan string) {
-	parts := strings.Split(coordinate, ",")
-	x, err := strconv.Atoi(parts[0])
-	if err != nil { panic(err) }
-	y, err := strconv.Atoi(parts[1])
-	if err != nil { panic(err) }
-	getPositionsNorth(x, y, boardWidthHeight, nextPosition)
-	getPositionsNorthEast(x, y, boardWidthHeight, nextPosition)
-	getPositionsEast(x, y, boardWidthHeight, nextPosition)
-	getPositionsSouthEast(x, y, boardWidthHeight, nextPosition)
-	getPositionsSouth(x, y, boardWidthHeight, nextPosition)
-	getPositionsSouthWest(x, y, boardWidthHeight, nextPosition)
-	getPositionsWest(x, y, boardWidthHeight, nextPosition)
-	getPositionsNorthWest(x, y, boardWidthHeight, nextPosition)
-	nextPosition <- ""
-}
-
-func getPositionsNorth(x, y, boardWidthHeight int, nextPosition chan string) {
-	for y-=1 ; y >= 0; y-- {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
+func getAttackablePositions(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generators := []func (x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+		generatePositionsNorth, generatePositionsNorthEast, 
+		generatePositionsEast, generatePositionsSouthEast,
+		generatePositionsSouth, generatePositionsSouthWest, 
+		generatePositionsWest, generatePositionsNorthWest }
+		
+	for _, generator := range (generators) {
+		if *quit {
+			break
+		}
+		generator(x, y, boardWidthHeight, nextPosition, quit)
 	}
+
+	close(nextPosition)
 }
 
-func getPositionsSouth(x, y, boardWidthHeight int, nextPosition chan string) {
-	for y+=1 ; y < boardWidthHeight; y++ {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-	}
+func generatePositionsNorth(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, North, Same, boardWidthHeight, nextPosition, quit)
 }
 
-func getPositionsWest(x, y, boardWidthHeight int, nextPosition chan string) {
-	for x-=1 ; x >= 0; x-- {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-	}
+func generatePositionsSouth(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, South, Same, boardWidthHeight, nextPosition, quit)
 }
 
-func getPositionsEast(x, y, boardWidthHeight int, nextPosition chan string) {
-	for x+=1 ; x < boardWidthHeight; x++ {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-	}
+func generatePositionsWest(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, Same, West, boardWidthHeight, nextPosition, quit)
 }
 
-func getPositionsNorthEast(x, y, boardWidthHeight int, nextPosition chan string) {
-	y--
-	x++
-	for ; y >= 0 && x < boardWidthHeight; y-- {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-		x++
-	}
+func generatePositionsEast(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, Same, East, boardWidthHeight, nextPosition, quit)
 }
 
-func getPositionsNorthWest(x, y, boardWidthHeight int, nextPosition chan string) {
-	y--
-	x--
-	for ; y >= 0 && x >= 0; y-- {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-		x--
-	}
+func generatePositionsNorthEast(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, North, East, boardWidthHeight, nextPosition, quit)
 }
 
-func getPositionsSouthEast(x, y, boardWidthHeight int, nextPosition chan string) {
-	y++
-	x++
-	for ; y < boardWidthHeight && x < boardWidthHeight; y++ {
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-		x++ 
-	}
+func generatePositionsNorthWest(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, North, West, boardWidthHeight, nextPosition, quit)
 }
 
-func getPositionsSouthWest(x, y, boardWidthHeight int, nextPosition chan string) {
-	y++ 
-	x--
-	for ; y < boardWidthHeight && x >= 0; y++ {
+func generatePositionsSouthEast(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, South, East, boardWidthHeight, nextPosition, quit)
+}
+
+func generatePositionsSouthWest(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	generatePositions(x, y, South, West, boardWidthHeight, nextPosition, quit)
+}
+
+func generatePositions(x, y, yDifference, xDifference, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	x += xDifference
+	y += yDifference
+	for ; y >= 0 && y < boardWidthHeight && x >= 0 && x < boardWidthHeight; {
+		if *quit {
+			return
+		}
 		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-		x--
+		x += xDifference
+		y += yDifference
 	}
 }
 
