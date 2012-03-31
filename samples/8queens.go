@@ -5,7 +5,7 @@ import (
 	"strconv";
 	"strings";
 	"time";
-	"./genetic"
+	"../genetic"
 )
 
 const North, West, South, East, Same int = -1, -1, 1, 1, 0
@@ -98,7 +98,7 @@ func getFitness(current string, boardWidthHeight int) int {
 		if isValid {
 			safeQueens++
 		}
-    }
+	}
 	fitness := 1000 * len(board) + safeQueens * 100 + len(distinctX) * len(distinctY)
 	
 	return fitness

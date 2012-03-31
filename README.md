@@ -6,11 +6,11 @@ This is a library I'm building while learning to code in Go
 
 - string_duplication.go - duplicates a string, see [related blog post](http://handcraftsman.wordpress.com/2012/03/27/first-program-in-go-simple-genetic-solver/)
 
-    go run string_duplication.go
+    go run samples/string_duplication.go
 
 - 8queens.go - solves the 8 Queens Puzzle, see [related blog post](http://handcraftsman.wordpress.com/2012/03/30/solving-the-8-queens-puzzle-with-go/)
 
-    go run 8queens.go
+    go run samples/8queens.go
 
 ## Usage
 
