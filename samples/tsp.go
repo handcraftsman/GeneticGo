@@ -109,15 +109,6 @@ func getDistance(pointA, pointB Point) int {
 	return int(.5 + sideC)
 }
 
-func convertGenesToBoard(genes string) map[string]bool {
-	board := make(map[string]bool)
-	for i := 0; i < len(genes); i += 2 {
-		coordinate := genes[i:i+1] + "," + genes[i+1:i+2]
-		board[coordinate] = true
-	}
-	return board
-}
-
 type Point struct {
 	row int
 	col int
