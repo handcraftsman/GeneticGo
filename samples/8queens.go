@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt";
-	"strconv";
-	"strings";
-	"time";
 	"../genetic"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const North, West, South, East, Same int = -1, -1, 1, 1, 0
@@ -16,14 +16,14 @@ func main() {
 	for i := 0; i < boardWidthHeight; i++ {
 		genes += strconv.Itoa(i)
 	}
-	
+
 	start := time.Now()
-	
-	calc := func (current string) int {
+
+	calc := func(current string) int {
 		return getFitness(current, boardWidthHeight)
 	}
-	
-	disp := func (current string) {
+
+	disp := func(current string) {
 		display(current, boardWidthHeight)
 		print(current)
 		print("\t")
@@ -31,10 +31,10 @@ func main() {
 		print("\t")
 		fmt.Println(time.Since(start))
 	}
-	
+
 	var solver = new(genetic.Solver)
 	solver.MaxSecondsToRunWithoutImprovement = 1
-	
+
 	var best = solver.GetBest(calc, disp, genes, boardWidthHeight, 2)
 	disp(best)
 	print("Total time: ")
@@ -43,10 +43,10 @@ func main() {
 
 func display(current string, boardWidthHeight int) {
 	board := convertGenesToBoard(current)
-	defer func() {board = nil}()
-	
+	defer func() { board = nil }()
+	println()
 	for y := 0; y < boardWidthHeight; y++ {
-		for x:= 0; x < boardWidthHeight; x++ {
+		for x := 0; x < boardWidthHeight; x++ {
 			key := strconv.Itoa(x) + "," + strconv.Itoa(y)
 			if board[key] {
 				print("Q ")
@@ -60,37 +60,41 @@ func display(current string, boardWidthHeight int) {
 
 func getFitness(current string, boardWidthHeight int) int {
 	distinctX := make(map[int]bool)
-	defer func() {distinctX = nil}()
-	
+	defer func() { distinctX = nil }()
+
 	distinctY := make(map[int]bool)
-	defer func() {distinctY = nil}()
+	defer func() { distinctY = nil }()
 
 	board := convertGenesToBoard(current)
-	defer func() {board = nil}()
+	defer func() { board = nil }()
 
 	safeQueens := 0
-	for coordinate, _ := range ( board ) {
+	for coordinate, _ := range board {
 		parts := strings.Split(coordinate, ",")
-		
+
 		x, err := strconv.Atoi(parts[0])
-		if err != nil { panic(err) }
+		if err != nil {
+			panic(err)
+		}
 		distinctX[x] = true
-		
+
 		y, err := strconv.Atoi(parts[1])
-		if err != nil { panic(err) }
+		if err != nil {
+			panic(err)
+		}
 		distinctY[y] = true
-		
+
 		nextPosition := make(chan string)
-		defer func() {nextPosition = nil}()
-		
+		defer func() { nextPosition = nil }()
+
 		quit := false
 		go getAttackablePositions(x, y, boardWidthHeight, nextPosition, &quit)
-		
+
 		isValid := true
-        for n := range (nextPosition) {
+		for n := range nextPosition {
 			if board[n] {
 				quit = true
-				<- nextPosition
+				<-nextPosition
 				isValid = false
 				break
 			}
@@ -99,19 +103,19 @@ func getFitness(current string, boardWidthHeight int) int {
 			safeQueens++
 		}
 	}
-	fitness := 1000 * len(board) + safeQueens * 100 + len(distinctX) * len(distinctY)
-	
+	fitness := 1000*len(board) + safeQueens*100 + len(distinctX)*len(distinctY)
+
 	return fitness
 }
 
 func getAttackablePositions(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generators := []func (x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-		generatePositionsNorth, generatePositionsNorthEast, 
+	generators := []func(x, y, boardWidthHeight int, nextPosition chan string, quit *bool){
+		generatePositionsNorth, generatePositionsNorthEast,
 		generatePositionsEast, generatePositionsSouthEast,
-		generatePositionsSouth, generatePositionsSouthWest, 
-		generatePositionsWest, generatePositionsNorthWest }
-		
-	for _, generator := range (generators) {
+		generatePositionsSouth, generatePositionsSouthWest,
+		generatePositionsWest, generatePositionsNorthWest}
+
+	for _, generator := range generators {
 		if *quit {
 			break
 		}
@@ -156,7 +160,7 @@ func generatePositionsSouthWest(x, y, boardWidthHeight int, nextPosition chan st
 func generatePositions(x, y, yDifference, xDifference, boardWidthHeight int, nextPosition chan string, quit *bool) {
 	x += xDifference
 	y += yDifference
-	for ; y >= 0 && y < boardWidthHeight && x >= 0 && x < boardWidthHeight; {
+	for y >= 0 && y < boardWidthHeight && x >= 0 && x < boardWidthHeight {
 		if *quit {
 			return
 		}
@@ -166,13 +170,11 @@ func generatePositions(x, y, yDifference, xDifference, boardWidthHeight int, nex
 	}
 }
 
-func convertGenesToBoard(genes string) map[string] bool {
+func convertGenesToBoard(genes string) map[string]bool {
 	board := make(map[string]bool)
-	for i := 0; i < len(genes); i+=2 {
+	for i := 0; i < len(genes); i += 2 {
 		coordinate := genes[i:i+1] + "," + genes[i+1:i+2]
 		board[coordinate] = true
 	}
 	return board
 }
-
-
