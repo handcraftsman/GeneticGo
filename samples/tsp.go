@@ -1,7 +1,7 @@
 package main
 
 import (
-	"../genetic"
+	".."
 	"flag"
 	"fmt"
 	"github.com/handcraftsman/File"

@@ -6,13 +6,13 @@ This is a library I'm building while learning to code in Go
 
 GeneticGo is compatible with Go 1. Add it to your package repository:
 
-	go get https://github.com/handcraftsman/GeneticGo/tree/master/genetic
+	go get "github.com/handcraftsman/GeneticGo"
 
-Use it in your program:
+then use it in your program:
 
-	import ( "github.com/handcraftsman/GeneticGo/tree/master/genetic" )
+	import "github.com/handcraftsman/GeneticGo"
 
-## Samples (in order written)
+## Sample programs (in order written)
 
 - string_duplication.go - duplicates a string, see [related blog post](http://handcraftsman.wordpress.com/2012/03/27/first-program-in-go-simple-genetic-solver/)
 
@@ -22,7 +22,9 @@ Use it in your program:
 
     go run samples/8queens.go
 
-- tsp.go - travelling salesperson problem solver
+- tsp.go - travelling salesperson problem solver. Can solve eil51 (51 city route optimization problem) on occasion but on average only finds a solution within 10% of optimal.
+
+	prerequisite: go get "github.com/handcraftsman/File"
 
 	go run samples/tsp.go samples/data/tsp/eil51.tsp
 

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"../genetic"
+	".."
 	"fmt"
 	"time"
 )
