@@ -22,7 +22,7 @@ then use it in your program:
 
     go run samples/8queens.go
 
-- tsp.go - travelling salesperson problem solver. Can solve eil51 (51 city route optimization problem) on occasion but on average only finds a solution within 10% of optimal.
+- tsp.go - travelling salesperson problem solver. Can solve eil51 (51 city route optimization problem) on occasion but on average only finds a solution within 5% of optimal. See [related blog post](http://handcraftsman.wordpress.com/2012/04/02/go-implementation-of-a-travelling-salesperson-problem-solver/)
 
 	prerequisite: go get "github.com/handcraftsman/File"
 
