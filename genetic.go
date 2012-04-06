@@ -21,8 +21,8 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 	}
 	if solver.MaxSecondsToRunWithoutImprovement == 0 {
 		solver.MaxSecondsToRunWithoutImprovement = 20
+		fmt.Printf("\tSolver will run at most %v second(s) without improvement.\n", solver.MaxSecondsToRunWithoutImprovement)
 	}
-	fmt.Printf("\tSolver will run at most %v second(s) without improvement.\n", solver.MaxSecondsToRunWithoutImprovement)
 
 	childFitnessIsBetter := func(childFitness, parentFitness int) bool {
 		return childFitness > parentFitness
@@ -50,72 +50,178 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 
 	start := time.Now()
 
-	var bestParent = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
-	fitness := getFitness(bestParent)
-	bestFitness := fitness
-	parent := bestParent
-	parentFitness := fitness
-
 	strategies := [...]strategyInfo{
-		{"crossover ", crossover, 1},
-		{"mutate    ", mutate, 1},
-		{"reverse   ", reverse, 1},
-		{"shift     ", shift, 1},
-		{"swap      ", swap, 1},
+		{"crossover ", crossover, 1, false},
+		{"mutate    ", mutate, 1, true},
+		{"reverse   ", reverse, 1, true},
+		{"shift     ", shift, 1, true},
+		{"swap      ", swap, 1, true},
 	}
 
 	strategySuccessSum := len(strategies)
+
+	//pool := make([]sequenceInfo, 3*numberOfChromosomes*numberOfGenesPerChromosome)
+	maxPoolSize := 3 * numberOfChromosomes * numberOfGenesPerChromosome
+	pool := make([]sequenceInfo, 10)
+	bestParent, bestFitness, distinctPool := populatePool(pool, nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, childFitnessIsBetter, getFitness)
+	defer func() { pool = nil }()
+	defer func() { distinctPool = nil }()
+	nextDistinctPool := make(map[string]bool, len(pool))
+	nextDistinctPoolFitnesses := make(map[int]bool, len(pool))
+	nextDistinctPoolFitnesses[pool[0].fitness] = true
+	nextDistinctPoolFitnesses[pool[len(pool)/2].fitness] = true
+	nextDistinctPoolFitnesses[pool[len(pool)-1].fitness] = true
+
+	defer func() { nextDistinctPool = nil }()
+	poolIndex := 0
+
+	usedPoolParentSuccessCount := 80
+	usedBestParentSuccessCount := 20
+	usedParentSuccessSum := 100
+
+	expandedPool := false
 
 	for time.Since(start).Seconds() < solver.MaxSecondsToRunWithoutImprovement {
 		strategyIndex := rand.Intn(strategySuccessSum)
 		var strategy = strategies[0]
 		for i, potentialStrategy := range strategies {
-			if strategyIndex < potentialStrategy.Count {
+			if strategyIndex < potentialStrategy.count {
 				strategyIndex = i
 				strategy = strategies[strategyIndex]
 				break
 			}
-			strategyIndex -= potentialStrategy.Count
+			strategyIndex -= potentialStrategy.count
 		}
 
-		child := strategy.function(parent, bestParent, geneSet, numberOfGenesPerChromosome, nextGene)
-		fitness := getFitness(child)
-		if childFitnessIsSameOrBetter(fitness, parentFitness) {
-			if childFitnessIsBetter(fitness, bestFitness) {
+		useBestParent := false
+		whichParent := rand.Intn(usedParentSuccessSum)
+		if whichParent > usedPoolParentSuccessCount {
+			useBestParent = true
+		}
+
+		poolIndex = rand.Intn(len(pool))
+		parent := pool[poolIndex]
+		child := strategy.function(parent.genes, bestParent, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+		if distinctPool[child] {
+			continue
+		}
+		distinctPool[child] = true
+
+		childFitness := getFitness(child)
+		if childFitnessIsSameOrBetter(childFitness, pool[len(pool)-1].fitness) {
+			if childFitnessIsBetter(childFitness, pool[len(pool)-1].fitness) {
+				pool[len(pool)-1] = sequenceInfo{child, childFitness}
+				insertionSort(pool, childFitnessIsBetter, len(pool)-1)
+				nextDistinctPool[child] = true
+				nextDistinctPoolFitnesses[childFitness] = true
+			} else if len(pool) < maxPoolSize && len(nextDistinctPoolFitnesses) < 4 {
+				pool = append(pool, sequenceInfo{child, childFitness})
+				insertionSort(pool, childFitnessIsBetter, len(pool)-1)
+				nextDistinctPoolFitnesses[childFitness] = true
 				if solver.PrintStrategyUsage {
-					fmt.Print(strategy.name)
+					print(".")
+				}
+				expandedPool = true
+			}
+			if childFitnessIsBetter(childFitness, bestFitness) {
+				if solver.PrintStrategyUsage {
+					if expandedPool {
+						println()
+						expandedPool = false
+					}
+					print(strategy.name)
 				}
 				display(child)
 				start = time.Now()
-				bestFitness = fitness
+				bestFitness = childFitness
 				bestParent = child
-				strategies[strategyIndex].Count++
+				strategies[strategyIndex].count++
 				strategySuccessSum++
-			} else {
-				parent = child
-				parentFitness = fitness
 			}
+		}
+
+		if len(nextDistinctPool) == len(pool) && len(nextDistinctPoolFitnesses) > 3 {
+			distinctPool = nextDistinctPool
+			nextDistinctPool = make(map[string]bool, len(pool))
+			nextDistinctPool[bestParent] = true
+			nextDistinctPoolFitnesses = make(map[int]bool, len(pool))
+			nextDistinctPoolFitnesses[pool[0].fitness] = true
+			nextDistinctPoolFitnesses[pool[len(pool)/2].fitness] = true
+			nextDistinctPoolFitnesses[pool[len(pool)-1].fitness] = true
 		}
 	}
 
 	if solver.PrintStrategyUsage {
-		printStrategyUsage(strategies, strategySuccessSum)
+		printStrategyUsage(strategies, strategySuccessSum, usedBestParentSuccessCount, usedPoolParentSuccessCount, usedParentSuccessSum)
 	}
 
 	return bestParent
 }
 
-func printStrategyUsage(strategies [5]strategyInfo, strategySuccessSum int) {
+func populatePool(pool []sequenceInfo, nextChromosome chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int, compareFitnesses func(int, int) bool, getFitness func(string) int) (string, int, map[string]bool) {
+	distinctPool := make(map[string]bool, len(pool))
+	item := generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
+	bestFitness := getFitness(item)
+	pool[0] = sequenceInfo{item, bestFitness}
+	bestIndex := 0
+
+	i := 1
+	for i < len(pool) {
+		item = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
+
+		if distinctPool[item] {
+			continue
+		}
+		distinctPool[item] = true
+
+		itemFitness := getFitness(item)
+
+		pool[i] = sequenceInfo{item, bestFitness}
+		insertionSort(pool, compareFitnesses, i)
+		if compareFitnesses(itemFitness, bestFitness) {
+			bestFitness = itemFitness
+			bestIndex = i
+		}
+		i++
+	}
+
+	return pool[bestIndex].genes, bestFitness, distinctPool
+}
+
+func insertionSort(items []sequenceInfo, compareFitnesses func(int, int) bool, index int) {
+	if index < 1 || index > len(items) {
+		return
+	}
+	for i := index; i > 0; i-- {
+		if compareFitnesses(items[i].fitness, items[i-1].fitness) {
+			items[i], items[i-1] = items[i-1], items[i]
+			continue
+		}
+		break
+	}
+}
+
+func printStrategyUsage(strategies [5]strategyInfo, strategySuccessSum, usedBestParentSuccessCount, usedPoolParentSuccessCount, usedParentSuccessSum int) {
 	println("\nstrategy usage:")
 	for _, strategy := range strategies {
 		println(fmt.Sprint(
 			strategy.name, "\t",
-			strategy.Count, "\t",
-			100.0*strategy.Count/strategySuccessSum, "%"))
+			strategy.count, "\t",
+			100.0*strategy.count/strategySuccessSum, "%"))
 	}
+	println("\nparent selection in strategies:")
+	println(fmt.Sprint(
+		"used best parent\t",
+		usedBestParentSuccessCount, "\t",
+		100.0*usedBestParentSuccessCount/usedParentSuccessSum, "%"))
+	println(fmt.Sprint(
+		"used pool parent\t",
+		usedPoolParentSuccessCount, "\t",
+		100.0*usedPoolParentSuccessCount/usedParentSuccessSum, "%"))
+	println()
 }
 
-func crossover(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string) string {
+func crossover(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
 	sourceStart := rand.Intn((len(parentB)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 	destinationStart := rand.Intn((len(parentA)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 	maxLength := min(len(parentA)-destinationStart, len(parentB)-sourceStart)
@@ -136,11 +242,10 @@ func crossover(parentA, parentB, geneSet string, numberOfGenesPerChromosome int,
 	return child
 }
 
-func reverse(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string) string {
-	parent := parentB
-	useParentA := rand.Intn(2) == 1
-	if useParentA {
-		parent = parentA
+func reverse(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+	parent := parentA
+	if useBestParent {
+		parent = parentB
 	}
 
 	reversePointA := rand.Intn(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
@@ -172,15 +277,14 @@ func reverse(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, n
 	return child
 }
 
-func shift(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string) string {
-	parent := parentB
-	useParentA := rand.Intn(2) == 1
-	if useParentA {
-		parent = parentA
+func shift(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+	parent := parentA
+	if useBestParent {
+		parent = parentB
 	}
 
 	if len(parent) < numberOfGenesPerChromosome+1 {
-		return mutate(parent, parentB, geneSet, numberOfGenesPerChromosome, nextGene)
+		return mutate(parent, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 	}
 	shiftRight := rand.Intn(2) == 1
 
@@ -222,11 +326,10 @@ func shift(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nex
 	return child
 }
 
-func swap(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string) string {
-	parent := parentB
-	useParentA := rand.Intn(2) == 1
-	if useParentA {
-		parent = parentA
+func swap(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+	parent := parentA
+	if useBestParent {
+		parent = parentB
 	}
 
 	parentIndexA := rand.Intn(len(parent))
@@ -256,11 +359,10 @@ func swap(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, next
 	return child
 }
 
-func mutate(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string) string {
-	parent := parentB
-	useParentA := rand.Intn(2) == 1
-	if useParentA {
-		parent = parentA
+func mutate(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+	parent := parentA
+	if useBestParent {
+		parent = parentB
 	}
 
 	parentIndex := rand.Intn(len(parent))
@@ -327,7 +429,13 @@ func reverseArray(a []string) {
 }
 
 type strategyInfo struct {
-	name     string
-	function func(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string) string
-	Count    int
+	name                         string
+	function                     func(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string
+	count                        int
+	incrementParentSuccessCounts bool
+}
+
+type sequenceInfo struct {
+	genes   string
+	fitness int
 }
