@@ -5,6 +5,7 @@ type Solver struct {
 	MaxSecondsToRunWithoutImprovement float64
 	LowerFitnessesAreBetter           bool
 	PrintStrategyUsage                bool
+	PrintDiagnosticInfo               bool
 }
 
 type sequenceInfo struct {

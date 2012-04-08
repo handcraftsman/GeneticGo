@@ -29,7 +29,8 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 	start := time.Now()
 
 	maxPoolSize := 3 * numberOfChromosomes * numberOfGenesPerChromosome
-	pool := make([]sequenceInfo, 10)
+
+	pool := make([]sequenceInfo, maxPoolSize, maxPoolSize)
 	defer func() { pool = nil }()
 
 	distinctPool := populatePool(pool, nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, childFitnessIsBetter, getFitness)
@@ -37,20 +38,24 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 
 	bestParent := pool[0]
 
-	nextDistinctPool := make(map[string]bool, len(pool))
-	defer func() { nextDistinctPool = nil }()
+	children := make([]sequenceInfo, 1, maxPoolSize)
+	defer func() { children = nil }()
+	children[0] = bestParent
 
-	nextDistinctPoolFitnesses := populateDistinctPoolFitnessesMap(pool)
-	defer func() { nextDistinctPoolFitnesses = nil }()
+	distinctChildren := make(map[string]bool, len(pool))
+	defer func() { distinctChildren = nil }()
 
-	expandedPool := false
+	distinctChildrenFitnesses := populateDistinctPoolFitnessesMap(pool)
+	defer func() { distinctChildrenFitnesses = nil }()
+
+	needNewlineBeforeDisplay := false
 
 	for time.Since(start).Seconds() < solver.MaxSecondsToRunWithoutImprovement {
 		strategyIndex := getNextStrategyIndex(strategies, strategySuccessSum)
 		var strategy = strategies[strategyIndex]
 
 		parent := pool[rand.Intn(len(pool))]
-		useBestParent := rand.Intn(100) > 80
+		useBestParent := rand.Intn(100) == 0
 
 		childGenes := strategy.function(parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 
@@ -62,26 +67,45 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 		child := sequenceInfo{childGenes, getFitness(childGenes)}
 
 		if !childFitnessIsSameOrBetter(child, pool[len(pool)-1]) {
-			if len(pool) < maxPoolSize &&
-				len(nextDistinctPoolFitnesses) < 4 {
-				pool = append(pool, child)
+			continue
+		}
 
-				nextDistinctPoolFitnesses[child.fitness] = true
-				if solver.PrintStrategyUsage {
-					print(".")
-				}
-				expandedPool = true
+		if child.fitness == pool[len(pool)-1].fitness {
+			if len(pool) < maxPoolSize {
+				pool = append(pool, child)
+			} else {
+				pool[len(pool)-1] = child
+				insertionSort(pool, childFitnessIsSameOrBetter, len(pool)-1)
 			}
 
 			continue
 		}
 
+		if len(children) < maxPoolSize &&
+			(len(distinctChildrenFitnesses) < 4 ||
+				child.fitness == children[len(children)-1].fitness) {
+
+			children = append(children, child)
+
+			if solver.PrintDiagnosticInfo {
+				print(".")
+				needNewlineBeforeDisplay = true
+			}
+		} else {
+			children[len(children)-1] = child
+		}
+
+		insertionSort(children, childFitnessIsSameOrBetter, len(children)-1)
+
+		distinctChildren[child.genes] = true
+		distinctChildrenFitnesses[child.fitness] = true
+
 		if childFitnessIsBetter(child, bestParent) {
+			if needNewlineBeforeDisplay {
+				println()
+				needNewlineBeforeDisplay = false
+			}
 			if solver.PrintStrategyUsage {
-				if expandedPool {
-					println()
-					expandedPool = false
-				}
 				print(strategy.name)
 			}
 			display(child.genes)
@@ -89,22 +113,38 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 			bestParent = child
 			strategies[strategyIndex].count++
 			strategySuccessSum++
+			if solver.PrintDiagnosticInfo {
+				print("+")
+				needNewlineBeforeDisplay = true
+			}
+
+			pool[len(pool)-1] = child
+			insertionSort(pool, childFitnessIsSameOrBetter, len(pool)-1)
 		}
 
-		pool[len(pool)-1] = child
-		insertionSort(pool, childFitnessIsSameOrBetter, len(pool)-1)
-		nextDistinctPool[child.genes] = true
-		nextDistinctPoolFitnesses[child.fitness] = true
+		if len(distinctChildren) >= maxPoolSize &&
+			len(distinctChildrenFitnesses) > 3 {
+			if solver.PrintDiagnosticInfo {
+				print(">")
+				needNewlineBeforeDisplay = true
+			}
 
-		if len(nextDistinctPool) == len(pool) && len(nextDistinctPoolFitnesses) > 3 {
-			distinctPool = nextDistinctPool
-			nextDistinctPool = make(map[string]bool, len(pool))
-			nextDistinctPool[bestParent.genes] = true
+			pool = children
+			children = make([]sequenceInfo, 1, maxPoolSize)
+			children[0] = bestParent
 
-			nextDistinctPoolFitnesses = populateDistinctPoolFitnessesMap(pool)
+			distinctPool = distinctChildren
+			distinctChildren = make(map[string]bool, len(children))
+			distinctChildren[bestParent.genes] = true
+
+			distinctChildrenFitnesses = make(map[int]bool, len(pool))
+			distinctChildrenFitnesses[bestParent.fitness] = true
 		}
 	}
 
+	if needNewlineBeforeDisplay {
+		println()
+	}
 	if solver.PrintStrategyUsage {
 		printStrategyUsage(strategies, strategySuccessSum)
 	}
@@ -154,11 +194,11 @@ func getNextStrategyIndex(strategies []strategyInfo, strategySuccessSum int) int
 }
 
 func populateDistinctPoolFitnessesMap(pool []sequenceInfo) map[int]bool {
-	nextDistinctPoolFitnesses := make(map[int]bool, len(pool))
-	nextDistinctPoolFitnesses[pool[0].fitness] = true
-	nextDistinctPoolFitnesses[pool[len(pool)/2].fitness] = true
-	nextDistinctPoolFitnesses[pool[len(pool)-1].fitness] = true
-	return nextDistinctPoolFitnesses
+	distinctChildrenFitnesses := make(map[int]bool, len(pool))
+	distinctChildrenFitnesses[pool[0].fitness] = true
+	distinctChildrenFitnesses[pool[len(pool)/2].fitness] = true
+	distinctChildrenFitnesses[pool[len(pool)-1].fitness] = true
+	return distinctChildrenFitnesses
 }
 
 func printStrategyUsage(strategies []strategyInfo, strategySuccessSum int) {
