@@ -1,6 +1,6 @@
 # GeneticGo - genetic algorithm library written in Go
 
-This is a library I'm building while learning to code in Go
+This genetic solver adaptively adjusts the strategies being used to those that are successful at improving results.
 
 ## Usage
 
@@ -12,6 +12,35 @@ then use it in your program:
 
 	import "github.com/handcraftsman/GeneticGo"
 
+	solver := new(genetic.Solver)
+	solver.MaxSecondsToRunWithoutImprovement = 20 // you decide
+	solver.LowerFitnessesAreBetter = true // you decide
+	
+	// create a fitness function
+	getFitness := func(candidate string) int {
+		return ?? // evaluate the candidate and return a fitness value
+	}
+	
+	// create a display function
+	display := func(genes string) {
+		println(??) // provide some output to the user if desired
+	}
+	
+	// each gene is a single character
+	geneSet := "abc123..." // you decide the set of valid genes
+	numberOfChromosomes := 10 // you decide
+	numberOfGenesInAChromosome := 1 // you decide
+	
+	// if your problem can be solved with a fixed number of genes:
+	var result = solver.GetBest(getFitness, display, geneSet, numberOfChromosomes, numberOfGenesInAChromosome)
+
+	maxRoundsWithoutImprovement := 10 // you decide
+	bestPossibleFitness := 0 // you decide
+	
+	// alternatively, if you want the gene sequence to grow as necessary
+	var result = solver.GetBestUsingHillClimbing(getFitness, display, geneSet, maxRoundsWithoutImprovement, numberOfGenesInAChromosome, bestPossibleFitness)
+
+	
 ## Sample programs (in order of genetic complexity)
 
 - string_duplication.go - duplicates a string, see [related blog post](http://handcraftsman.wordpress.com/2012/03/27/first-program-in-go-simple-genetic-solver/)
@@ -28,6 +57,10 @@ then use it in your program:
 
 	go run samples/tsp.go samples/data/tsp/eil51.tsp
 
+- regex.go - genetically builds a regular expression. See [related blog post](http://handcraftsman.wordpress.com/2012/04/11/evolving-a-regular-expression-with-go/)
+
+	go run samples/regex.go
+	
 ## License		
 
 [MIT License](http://www.opensource.org/licenses/mit-license.php)
