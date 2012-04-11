@@ -6,6 +6,20 @@ type Solver struct {
 	LowerFitnessesAreBetter           bool
 	PrintStrategyUsage                bool
 	PrintDiagnosticInfo               bool
+
+	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other sequenceInfo) bool
+
+	quit                     bool
+	nextGene, nextChromosome chan string
+
+	strategies         []strategyInfo
+	strategySuccessSum int
+
+	needNewlineBeforeDisplay bool
+
+	maxPoolSize  int
+	pool         []sequenceInfo
+	distinctPool map[string]bool
 }
 
 type sequenceInfo struct {

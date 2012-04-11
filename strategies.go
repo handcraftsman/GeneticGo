@@ -5,6 +5,10 @@ import (
 )
 
 func crossover(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+	if len(parentA) == 1 || len(parentB) == 1 {
+		return mutate(parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+	}
+
 	sourceStart := rand.Intn((len(parentB)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 	destinationStart := rand.Intn((len(parentA)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 	maxLength := min(len(parentA)-destinationStart, len(parentB)-sourceStart)
@@ -53,6 +57,10 @@ func reverse(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, n
 	parent := parentA
 	if useBestParent {
 		parent = parentB
+	}
+
+	if len(parent) == 1 {
+		return mutate(parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 	}
 
 	reversePointA := rand.Intn(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
@@ -134,6 +142,10 @@ func shift(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nex
 }
 
 func swap(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+	if len(parentA) == 1 || len(parentB) == 1 {
+		return mutate(parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+	}
+
 	parent := parentA
 	if useBestParent {
 		parent = parentB

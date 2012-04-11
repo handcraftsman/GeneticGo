@@ -2,86 +2,232 @@ package genetic
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 )
 
-func (solver *Solver) GetBest(getFitness func(string) int, display func(string), geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
+func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
+	display func(string),
+	geneSet string,
+	maxRoundsWithoutImprovement, numberOfGenesPerChromosome int,
+	bestPossibleFitness int) string {
+
 	seedRandomNumberGenerator(solver.RandSeed)
 	solver.ensureMaxSecondsToRunIsValid()
-	childFitnessIsBetter, childFitnessIsSameOrBetter := solver.createFitnessComparisonFunctions()
+	solver.createFitnessComparisonFunctions()
+	solver.initializeStrategies()
+	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
+	solver.needNewlineBeforeDisplay = false
+	roundsSinceLastImprovement := 0
+	numberOfGenesToUse := numberOfGenesPerChromosome
+	maxLength := numberOfGenesPerChromosome * maxRoundsWithoutImprovement
+	generationCount := 1
 
-	nextGene := make(chan string)
-	go generateGene(nextGene, geneSet)
+	bestEver := sequenceInfo{genes: generateParent(solver.nextChromosome, geneSet, generationCount, numberOfGenesPerChromosome)}
+	bestEver.fitness = getFitness(bestEver.genes)
+	initialParent := bestEver
+	display(bestEver.genes)
 
-	nextChromosome := make(chan string)
-	go generateChromosome(nextChromosome, nextGene, geneSet, numberOfGenesPerChromosome)
+	solver.initializePool(generationCount, numberOfGenesPerChromosome, geneSet, initialParent, getFitness)
 
-	strategies := []strategyInfo{
-		{"crossover ", crossover, 1, false},
-		{"mutate    ", mutate, 1, true},
-		{"reverse   ", reverse, 1, true},
-		{"shift     ", shift, 1, true},
-		{"swap      ", swap, 1, true},
+	defer func() {
+		solver.quit = true
+		<-solver.nextChromosome
+		<-solver.nextGene
+		solver.pool = nil
+		solver.distinctPool = nil
+	}()
+
+	filteredDisplay := func(item sequenceInfo) {
+		if solver.childFitnessIsBetter(item, bestEver) {
+			display(item.genes)
+		}
 	}
-	strategySuccessSum := len(strategies)
+
+	for ; numberOfGenesToUse < maxLength &&
+		roundsSinceLastImprovement < maxRoundsWithoutImprovement &&
+		bestEver.fitness != bestPossibleFitness; generationCount++ {
+
+		solver.printNewlineIfNecessary()
+		println("-- starting round", generationCount)
+
+		result := solver.getBestWithInitialParent(getFitness,
+			filteredDisplay,
+			geneSet,
+			generationCount,
+			numberOfGenesPerChromosome)
+
+		if solver.childFitnessIsBetter(result, bestEver) {
+			roundsSinceLastImprovement = 0
+			bestEver = result
+		} else {
+			roundsSinceLastImprovement++
+			if roundsSinceLastImprovement >= maxRoundsWithoutImprovement {
+				break
+			}
+		}
+
+		newPool := make([]sequenceInfo, 0, solver.maxPoolSize)
+		distinctPool := make(map[string]bool, solver.maxPoolSize)
+
+		improved := false
+
+		for round := 0; round < 100 && !improved; round++ {
+			for _, parent := range solver.pool {
+				childGenes := parent.genes + <-solver.nextChromosome
+				if distinctPool[childGenes] {
+					continue
+				}
+				distinctPool[childGenes] = true
+
+				fitness := getFitness(childGenes)
+				child := sequenceInfo{childGenes, fitness}
+				if len(newPool) < solver.maxPoolSize {
+					newPool = append(newPool, child)
+				} else {
+					newPool[len(newPool)-1] = child
+				}
+				insertionSort(newPool, solver.childFitnessIsSameOrBetter, len(newPool)-1)
+
+				if solver.childFitnessIsBetter(child, bestEver) {
+					roundsSinceLastImprovement = 0
+					solver.printNewlineIfNecessary()
+					if solver.PrintStrategyUsage {
+						print("climb    ")
+					}
+					filteredDisplay(child)
+					bestEver = child
+					improved = true
+				}
+			}
+		}
+
+		solver.pool = newPool
+		solver.distinctPool = distinctPool
+	}
+
+	solver.printNewlineIfNecessary()
+	solver.printStrategyUsage()
+
+	return bestEver.genes
+}
+
+func (solver *Solver) GetBest(getFitness func(string) int,
+	display func(string),
+	geneSet string,
+	numberOfChromosomes, numberOfGenesPerChromosome int) string {
+
+	seedRandomNumberGenerator(solver.RandSeed)
+	solver.ensureMaxSecondsToRunIsValid()
+	solver.createFitnessComparisonFunctions()
+	solver.initializeStrategies()
+	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
+	solver.needNewlineBeforeDisplay = false
+
+	defer func() {
+		solver.quit = true
+		<-solver.nextChromosome
+		<-solver.nextGene
+		solver.pool = nil
+		solver.distinctPool = nil
+	}()
+
+	initialParent := sequenceInfo{genes: generateParent(solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)}
+	initialParent.fitness = getFitness(initialParent.genes)
+
+	solver.initializePool(numberOfChromosomes, numberOfGenesPerChromosome, geneSet, initialParent, getFitness)
+
+	best := solver.getBestWithInitialParent(getFitness,
+		func(sequence sequenceInfo) { display(sequence.genes) },
+		geneSet,
+		numberOfChromosomes,
+		numberOfGenesPerChromosome)
+
+	solver.printNewlineIfNecessary()
+	solver.printStrategyUsage()
+
+	return best.genes
+}
+
+func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
+	display func(sequenceInfo),
+	geneSet string,
+	numberOfChromosomes, numberOfGenesPerChromosome int) sequenceInfo {
 
 	start := time.Now()
 
-	maxPoolSize := 3 * numberOfChromosomes * numberOfGenesPerChromosome
+	bestParent := solver.pool[0]
 
-	pool := make([]sequenceInfo, maxPoolSize, maxPoolSize)
-	defer func() { pool = nil }()
-
-	distinctPool := populatePool(pool, nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, childFitnessIsBetter, getFitness)
-	defer func() { distinctPool = nil }()
-
-	bestParent := pool[0]
-
-	children := make([]sequenceInfo, 1, maxPoolSize)
+	children := make([]sequenceInfo, 1, solver.maxPoolSize)
 	defer func() { children = nil }()
 	children[0] = bestParent
 
-	distinctChildren := make(map[string]bool, len(pool))
+	distinctChildren := make(map[string]bool, len(solver.pool))
 	defer func() { distinctChildren = nil }()
 
-	distinctChildrenFitnesses := populateDistinctPoolFitnessesMap(pool)
+	distinctChildrenFitnesses := populateDistinctPoolFitnessesMap(solver.pool)
 	defer func() { distinctChildrenFitnesses = nil }()
 
-	needNewlineBeforeDisplay := false
+	quit := false
+	nextStrategyIndex := make(chan int, 10)
+	go func() {
+		for {
+			strategyIndex := solver.getNextStrategyIndex()
+			if quit {
+				break
+			}
+			nextStrategyIndex <- strategyIndex
+		}
+		close(nextStrategyIndex)
+	}()
+
+	defer func() {
+		quit = true
+		<-nextStrategyIndex
+	}()
+
+	maxPossiblePermutations := math.Pow(float64(len(geneSet)), float64(numberOfChromosomes*numberOfGenesPerChromosome))
 
 	for time.Since(start).Seconds() < solver.MaxSecondsToRunWithoutImprovement {
-		strategyIndex := getNextStrategyIndex(strategies, strategySuccessSum)
-		var strategy = strategies[strategyIndex]
+		strategyIndex := <-nextStrategyIndex
+		var strategy = solver.strategies[strategyIndex]
 
-		parent := pool[rand.Intn(len(pool))]
+		parent := solver.pool[rand.Intn(len(solver.pool))]
 		useBestParent := rand.Intn(100) == 0
 
-		childGenes := strategy.function(parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+		childGenes := strategy.function(parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, useBestParent)
 
-		if distinctPool[childGenes] {
+		if solver.distinctPool[childGenes] {
+			if float64(len(solver.distinctPool)) == maxPossiblePermutations {
+				solver.printNewlineIfNecessary()
+				if solver.PrintDiagnosticInfo {
+					println("tried all permutations")
+				}
+				break
+			}
 			continue
 		}
-		distinctPool[childGenes] = true
+		solver.distinctPool[childGenes] = true
 
 		child := sequenceInfo{childGenes, getFitness(childGenes)}
 
-		if !childFitnessIsSameOrBetter(child, pool[len(pool)-1]) {
+		if !solver.childFitnessIsSameOrBetter(child, solver.pool[len(solver.pool)-1]) {
 			continue
 		}
 
-		if child.fitness == pool[len(pool)-1].fitness {
-			if len(pool) < maxPoolSize {
-				pool = append(pool, child)
+		if child.fitness == solver.pool[len(solver.pool)-1].fitness {
+			if len(solver.pool) < solver.maxPoolSize {
+				solver.pool = append(solver.pool, child)
 			} else {
-				pool[len(pool)-1] = child
-				insertionSort(pool, childFitnessIsSameOrBetter, len(pool)-1)
+				solver.pool[len(solver.pool)-1] = child
+				insertionSort(solver.pool, solver.childFitnessIsSameOrBetter, len(solver.pool)-1)
 			}
 
 			continue
 		}
 
-		if len(children) < maxPoolSize &&
+		if len(children) < solver.maxPoolSize &&
 			(len(distinctChildrenFitnesses) < 4 ||
 				child.fitness == children[len(children)-1].fitness) {
 
@@ -89,89 +235,80 @@ func (solver *Solver) GetBest(getFitness func(string) int, display func(string),
 
 			if solver.PrintDiagnosticInfo {
 				print(".")
-				needNewlineBeforeDisplay = true
+				solver.needNewlineBeforeDisplay = true
 			}
 		} else {
 			children[len(children)-1] = child
 		}
 
-		insertionSort(children, childFitnessIsSameOrBetter, len(children)-1)
+		insertionSort(children, solver.childFitnessIsSameOrBetter, len(children)-1)
 
 		distinctChildren[child.genes] = true
 		distinctChildrenFitnesses[child.fitness] = true
 
-		if childFitnessIsBetter(child, bestParent) {
-			if needNewlineBeforeDisplay {
-				println()
-				needNewlineBeforeDisplay = false
-			}
+		if solver.childFitnessIsBetter(child, bestParent) {
+			solver.printNewlineIfNecessary()
 			if solver.PrintStrategyUsage {
 				print(strategy.name)
 			}
-			display(child.genes)
+			display(child)
 			start = time.Now()
 			bestParent = child
-			strategies[strategyIndex].count++
-			strategySuccessSum++
+			solver.incrementStrategyUseCount(strategyIndex)
 			if solver.PrintDiagnosticInfo {
 				print("+")
-				needNewlineBeforeDisplay = true
+				solver.needNewlineBeforeDisplay = true
 			}
 
-			pool[len(pool)-1] = child
-			insertionSort(pool, childFitnessIsSameOrBetter, len(pool)-1)
+			solver.pool[len(solver.pool)-1] = child
+			insertionSort(solver.pool, solver.childFitnessIsSameOrBetter, len(solver.pool)-1)
 		}
 
-		if len(distinctChildren) >= maxPoolSize &&
+		if len(distinctChildren) >= solver.maxPoolSize &&
 			len(distinctChildrenFitnesses) > 3 {
 			if solver.PrintDiagnosticInfo {
 				print(">")
-				needNewlineBeforeDisplay = true
+				solver.needNewlineBeforeDisplay = true
 			}
 
-			pool = children
-			children = make([]sequenceInfo, 1, maxPoolSize)
+			solver.pool = children
+			children = make([]sequenceInfo, 1, solver.maxPoolSize)
 			children[0] = bestParent
 
-			distinctPool = distinctChildren
+			solver.distinctPool = distinctChildren
 			distinctChildren = make(map[string]bool, len(children))
 			distinctChildren[bestParent.genes] = true
 
-			distinctChildrenFitnesses = make(map[int]bool, len(pool))
+			distinctChildrenFitnesses = make(map[int]bool, len(solver.pool))
 			distinctChildrenFitnesses[bestParent.fitness] = true
 		}
 	}
 
-	if needNewlineBeforeDisplay {
-		println()
-	}
-	if solver.PrintStrategyUsage {
-		printStrategyUsage(strategies, strategySuccessSum)
+	for _, child := range children {
+		solver.pool = append(solver.pool, child)
 	}
 
-	return bestParent.genes
+	return bestParent
 }
 
-func (solver *Solver) createFitnessComparisonFunctions() (func(child, other sequenceInfo) bool, func(child, other sequenceInfo) bool) {
-	childFitnessIsBetter := func(child, other sequenceInfo) bool {
-		return child.fitness < other.fitness
-	}
+func (solver *Solver) createFitnessComparisonFunctions() {
+	if solver.LowerFitnessesAreBetter {
+		solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+			return child.fitness < other.fitness
+		}
 
-	childFitnessIsSameOrBetter := func(child, other sequenceInfo) bool {
-		return child.fitness <= other.fitness
-	}
-
-	if !solver.LowerFitnessesAreBetter {
-		childFitnessIsBetter = func(child, other sequenceInfo) bool {
+		solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+			return child.fitness <= other.fitness
+		}
+	} else {
+		solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
 			return child.fitness > other.fitness
 		}
 
-		childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+		solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
 			return child.fitness >= other.fitness
 		}
 	}
-
-	return childFitnessIsBetter, childFitnessIsSameOrBetter
 }
 
 func (solver *Solver) ensureMaxSecondsToRunIsValid() {
@@ -181,9 +318,9 @@ func (solver *Solver) ensureMaxSecondsToRunIsValid() {
 	}
 }
 
-func getNextStrategyIndex(strategies []strategyInfo, strategySuccessSum int) int {
-	strategyIndex := rand.Intn(strategySuccessSum)
-	for i, potentialStrategy := range strategies {
+func (solver *Solver) getNextStrategyIndex() int {
+	strategyIndex := rand.Intn(solver.strategySuccessSum)
+	for i, potentialStrategy := range solver.strategies {
 		if strategyIndex < potentialStrategy.count {
 			strategyIndex = i
 			break
@@ -193,21 +330,64 @@ func getNextStrategyIndex(strategies []strategyInfo, strategySuccessSum int) int
 	return strategyIndex
 }
 
+func (solver *Solver) incrementStrategyUseCount(strategyIndex int) {
+	solver.strategies[strategyIndex].count++
+	solver.strategySuccessSum++
+}
+
+func (solver *Solver) initializeChannels(geneSet string, numberOfGenesPerChromosome int) {
+	solver.quit = false
+
+	solver.nextGene = make(chan string, 1+numberOfGenesPerChromosome)
+	go generateGene(solver.nextGene, geneSet, &solver.quit)
+
+	solver.nextChromosome = make(chan string, 1)
+	go generateChromosome(solver.nextChromosome, solver.nextGene, geneSet, numberOfGenesPerChromosome, &solver.quit)
+}
+
+func (solver *Solver) initializePool(numberOfChromosomes, numberOfGenesPerChromosome int, geneSet string, initialParent sequenceInfo, getFitness func(string) int) {
+	solver.maxPoolSize = max(len(geneSet), 3*numberOfChromosomes*numberOfGenesPerChromosome)
+	solver.pool = make([]sequenceInfo, solver.maxPoolSize, solver.maxPoolSize)
+	solver.pool[0] = initialParent
+	solver.distinctPool = populatePool(solver.pool, solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, solver.childFitnessIsBetter, getFitness)
+}
+
+func (solver *Solver) initializeStrategies() {
+	solver.strategies = []strategyInfo{
+		{"crossover ", crossover, 1, false},
+		{"mutate    ", mutate, 1, true},
+		{"reverse   ", reverse, 1, true},
+		{"shift     ", shift, 1, true},
+		{"swap      ", swap, 1, true},
+	}
+	solver.strategySuccessSum = len(solver.strategies)
+}
+
+func (solver *Solver) printNewlineIfNecessary() {
+	if solver.needNewlineBeforeDisplay {
+		solver.needNewlineBeforeDisplay = false
+		println()
+	}
+}
+
+func (solver *Solver) printStrategyUsage() {
+	if !solver.PrintStrategyUsage {
+		return
+	}
+	println("\nstrategy usage:")
+	for _, strategy := range solver.strategies {
+		println(fmt.Sprint(
+			strategy.name, "\t",
+			strategy.count, "\t",
+			100.0*strategy.count/solver.strategySuccessSum, "%"))
+	}
+	println()
+}
+
 func populateDistinctPoolFitnessesMap(pool []sequenceInfo) map[int]bool {
 	distinctChildrenFitnesses := make(map[int]bool, len(pool))
 	distinctChildrenFitnesses[pool[0].fitness] = true
 	distinctChildrenFitnesses[pool[len(pool)/2].fitness] = true
 	distinctChildrenFitnesses[pool[len(pool)-1].fitness] = true
 	return distinctChildrenFitnesses
-}
-
-func printStrategyUsage(strategies []strategyInfo, strategySuccessSum int) {
-	println("\nstrategy usage:")
-	for _, strategy := range strategies {
-		println(fmt.Sprint(
-			strategy.name, "\t",
-			strategy.count, "\t",
-			100.0*strategy.count/strategySuccessSum, "%"))
-	}
-	println()
 }
