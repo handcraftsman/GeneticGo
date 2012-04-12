@@ -12,7 +12,7 @@ import (
 const regexSpecials = "[]()|?*+"
 
 func main() {
-	wanted := []string{"AL","AK","AS","AZ","AR"}
+	wanted := []string{"AL", "AK", "AS", "AZ", "AR"}
 	unwanted := []string{"AA"}
 
 	geneSet := getUniqueCharacters(wanted) + regexSpecials
@@ -24,15 +24,16 @@ func main() {
 
 	disp := func(genes string) {
 		fmt.Println(genes,
-		"\t",
-		calc(genes),
-		"\t",
-		time.Since(start))
+			"\t",
+			calc(genes),
+			"\t",
+			time.Since(start))
 	}
 
 	var solver = new(genetic.Solver)
 	solver.MaxSecondsToRunWithoutImprovement = 3
 	solver.LowerFitnessesAreBetter = true
+	solver.MaxRoundsWithoutImprovement = 10
 
 	var best = solver.GetBestUsingHillClimbing(calc, disp, geneSet, 10, 1, 0)
 	fitness := calc(best)

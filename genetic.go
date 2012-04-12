@@ -9,20 +9,18 @@ import (
 func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	display func(string),
 	geneSet string,
-	maxRoundsWithoutImprovement, numberOfGenesPerChromosome int,
+	maxNumberOfGenes, numberOfGenesPerChromosome int,
 	bestPossibleFitness int) string {
 
 	solver.initialize(geneSet, numberOfGenesPerChromosome)
 
 	roundsSinceLastImprovement := 0
 	numberOfGenesToUse := numberOfGenesPerChromosome
-	maxLength := numberOfGenesPerChromosome * maxRoundsWithoutImprovement
 	generationCount := 1
 
-	bestEver := sequenceInfo{genes: generateParent(solver.nextChromosome, geneSet, generationCount, numberOfGenesPerChromosome)}
+	bestEver := sequenceInfo{genes: ""}
 	bestEver.fitness = getFitness(bestEver.genes)
 	initialParent := bestEver
-	display(bestEver.genes)
 
 	solver.initializePool(generationCount, numberOfGenesPerChromosome, geneSet, initialParent, getFitness)
 
@@ -40,17 +38,19 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		}
 	}
 
-	for ; numberOfGenesToUse < maxLength &&
-		roundsSinceLastImprovement < maxRoundsWithoutImprovement &&
-		bestEver.fitness != bestPossibleFitness; generationCount++ {
+	fmt.Println("-- starting round", generationCount)
 
-		solver.printNewlineIfNecessary()
-		fmt.Println("-- starting round", generationCount)
+	bestEver = solver.pool[0]
+	display(bestEver.genes)
+
+	for numberOfGenesToUse <= maxNumberOfGenes &&
+		roundsSinceLastImprovement < solver.MaxRoundsWithoutImprovement &&
+		bestEver.fitness != bestPossibleFitness {
 
 		result := solver.getBestWithInitialParent(getFitness,
 			filteredDisplay,
 			geneSet,
-			generationCount,
+			numberOfGenesToUse,
 			numberOfGenesPerChromosome)
 
 		if solver.childFitnessIsBetter(result, bestEver) {
@@ -58,7 +58,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 			bestEver = result
 		} else {
 			roundsSinceLastImprovement++
-			if roundsSinceLastImprovement >= maxRoundsWithoutImprovement {
+			if roundsSinceLastImprovement >= solver.MaxRoundsWithoutImprovement {
 				break
 			}
 		}
@@ -67,6 +67,11 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		distinctPool := make(map[string]bool, solver.maxPoolSize)
 
 		improved := false
+
+		generationCount++
+		numberOfGenesToUse = generationCount * numberOfGenesPerChromosome
+		solver.printNewlineIfNecessary()
+		fmt.Println("-- starting round", generationCount)
 
 		for round := 0; round < 100 && !improved; round++ {
 			for _, parent := range solver.pool {
@@ -175,6 +180,9 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 
 	maxPossiblePermutations := math.Pow(float64(len(geneSet)), float64(numberOfChromosomes*numberOfGenesPerChromosome))
 
+	mutationStrategy := solver.strategies[solver.mutationStrategyIndex]
+	crossoverStrategy := solver.strategies[solver.crossoverStrategyIndex]
+
 	for time.Since(start).Seconds() < solver.MaxSecondsToRunWithoutImprovement {
 		strategyIndex := <-nextStrategyIndex
 		var strategy = solver.strategies[strategyIndex]
@@ -182,7 +190,7 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 		parent := solver.pool[solver.nextRand(len(solver.pool))]
 		useBestParent := solver.nextRand(100) == 0
 
-		childGenes := strategy.generate(strategy, solver.mutationStrategy, parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, useBestParent)
+		childGenes := strategy.generate(strategy, mutationStrategy, parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, useBestParent)
 
 		if solver.distinctPool[childGenes] {
 			if float64(len(solver.distinctPool)) == maxPossiblePermutations {
@@ -192,7 +200,15 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 				}
 				break
 			}
-			continue
+
+			if solver.nextRand(solver.strategySuccessSum) < solver.strategies[solver.mutationStrategyIndex].count {
+				childGenes = mutationStrategy.generate(mutationStrategy, mutationStrategy, childGenes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, false)
+			} else {
+				childGenes = crossoverStrategy.generate(crossoverStrategy, mutationStrategy, childGenes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, false)
+			}
+			if solver.distinctPool[childGenes] {
+				continue
+			}
 		}
 		solver.distinctPool[childGenes] = true
 
@@ -325,6 +341,9 @@ func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int)
 	if solver.RandSeed == 0 {
 		solver.RandSeed = time.Now().UnixNano()
 	}
+	if solver.MaxRoundsWithoutImprovement == 0 {
+		solver.MaxRoundsWithoutImprovement = 2
+	}
 	solver.rand = createRandomNumberGenerator(solver.RandSeed)
 	solver.ensureMaxSecondsToRunIsValid()
 	solver.createFitnessComparisonFunctions()
@@ -359,7 +378,8 @@ func (solver *Solver) initializeStrategies() {
 		{"swap      ", swap, 1, true, createRandomNumberGenerator(solver.RandSeed)},
 	}
 	solver.strategySuccessSum = len(solver.strategies)
-	solver.mutationStrategy = solver.strategies[1]
+	solver.crossoverStrategyIndex = 0
+	solver.mutationStrategyIndex = 1
 }
 
 func (solver *Solver) nextRand(limit int) int {

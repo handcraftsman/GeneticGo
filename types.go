@@ -5,6 +5,7 @@ import "math/rand"
 type Solver struct {
 	RandSeed                          int64
 	MaxSecondsToRunWithoutImprovement float64
+	MaxRoundsWithoutImprovement       int
 	LowerFitnessesAreBetter           bool
 	PrintStrategyUsage                bool
 	PrintDiagnosticInfo               bool
@@ -14,9 +15,10 @@ type Solver struct {
 	quit                     bool
 	nextGene, nextChromosome chan string
 
-	strategies         []strategyInfo
-	strategySuccessSum int
-	mutationStrategy   strategyInfo
+	strategies             []strategyInfo
+	strategySuccessSum     int
+	mutationStrategyIndex  int
+	crossoverStrategyIndex int
 
 	needNewlineBeforeDisplay bool
 
