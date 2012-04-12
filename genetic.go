@@ -45,7 +45,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		bestEver.fitness != bestPossibleFitness; generationCount++ {
 
 		solver.printNewlineIfNecessary()
-		println("-- starting round", generationCount)
+		fmt.Println("-- starting round", generationCount)
 
 		result := solver.getBestWithInitialParent(getFitness,
 			filteredDisplay,
@@ -89,7 +89,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 					roundsSinceLastImprovement = 0
 					solver.printNewlineIfNecessary()
 					if solver.PrintStrategyUsage {
-						print("climb    ")
+						fmt.Print("climb     ")
 					}
 					filteredDisplay(child)
 					bestEver = child
@@ -188,7 +188,7 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 			if float64(len(solver.distinctPool)) == maxPossiblePermutations {
 				solver.printNewlineIfNecessary()
 				if solver.PrintDiagnosticInfo {
-					println("tried all permutations")
+					fmt.Println("tried all permutations")
 				}
 				break
 			}
@@ -220,7 +220,7 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 			children = append(children, child)
 
 			if solver.PrintDiagnosticInfo {
-				print(".")
+				fmt.Print(".")
 				solver.needNewlineBeforeDisplay = true
 			}
 		} else {
@@ -235,14 +235,14 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 		if solver.childFitnessIsBetter(child, bestParent) {
 			solver.printNewlineIfNecessary()
 			if solver.PrintStrategyUsage {
-				print(strategy.name)
+				fmt.Print(strategy.name)
 			}
 			display(child)
 			start = time.Now()
 			bestParent = child
 			solver.incrementStrategyUseCount(strategyIndex)
 			if solver.PrintDiagnosticInfo {
-				print("+")
+				fmt.Print("+")
 				solver.needNewlineBeforeDisplay = true
 			}
 
@@ -253,7 +253,7 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 		if len(distinctChildren) >= solver.maxPoolSize &&
 			len(distinctChildrenFitnesses) > 3 {
 			if solver.PrintDiagnosticInfo {
-				print(">")
+				fmt.Print(">")
 				solver.needNewlineBeforeDisplay = true
 			}
 
@@ -369,7 +369,7 @@ func (solver *Solver) nextRand(limit int) int {
 func (solver *Solver) printNewlineIfNecessary() {
 	if solver.needNewlineBeforeDisplay {
 		solver.needNewlineBeforeDisplay = false
-		println()
+		fmt.Println()
 	}
 }
 
@@ -377,14 +377,14 @@ func (solver *Solver) printStrategyUsage() {
 	if !solver.PrintStrategyUsage {
 		return
 	}
-	println("\nstrategy usage:")
+	fmt.Println("\nstrategy usage:")
 	for _, strategy := range solver.strategies {
-		println(fmt.Sprint(
+		fmt.Println(
 			strategy.name, "\t",
 			strategy.count, "\t",
-			100.0*strategy.count/solver.strategySuccessSum, "%"))
+			100.0*strategy.count/solver.strategySuccessSum, "%")
 	}
-	println()
+	fmt.Println()
 }
 
 func populateDistinctPoolFitnessesMap(pool []sequenceInfo) map[int]bool {
