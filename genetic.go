@@ -160,14 +160,10 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 	bestParent := solver.pool[0]
 
 	children := make([]sequenceInfo, 1, solver.maxPoolSize)
-	defer func() { children = nil }()
 	children[0] = bestParent
 
 	distinctChildren := make(map[string]bool, len(solver.pool))
-	defer func() { distinctChildren = nil }()
-
 	distinctChildrenFitnesses := populateDistinctPoolFitnessesMap(solver.pool)
-	defer func() { distinctChildrenFitnesses = nil }()
 
 	quit := false
 	nextStrategyIndex := make(chan int, 10)

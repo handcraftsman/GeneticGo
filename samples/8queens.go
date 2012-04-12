@@ -43,7 +43,6 @@ func main() {
 
 func display(current string, boardWidthHeight int) {
 	board := convertGenesToBoard(current)
-	defer func() { board = nil }()
 	println()
 	for y := 0; y < boardWidthHeight; y++ {
 		for x := 0; x < boardWidthHeight; x++ {
@@ -60,13 +59,8 @@ func display(current string, boardWidthHeight int) {
 
 func getFitness(current string, boardWidthHeight int) int {
 	distinctX := make(map[int]bool)
-	defer func() { distinctX = nil }()
-
 	distinctY := make(map[int]bool)
-	defer func() { distinctY = nil }()
-
 	board := convertGenesToBoard(current)
-	defer func() { board = nil }()
 
 	safeQueens := 0
 	for coordinate, _ := range board {

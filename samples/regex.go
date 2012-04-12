@@ -49,7 +49,6 @@ func main() {
 
 func getUniqueCharacters(wanted []string) string {
 	uniqueCharacters := make(map[string]bool)
-	defer func() { uniqueCharacters = nil }()
 
 	characters := ""
 	for _, item := range wanted {
@@ -92,8 +91,5 @@ func isValidRegex(genes string) bool {
 	}
 
 	_, err := regexp.Compile(genes)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
