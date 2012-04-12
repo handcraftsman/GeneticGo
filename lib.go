@@ -5,6 +5,13 @@ import (
 	"time"
 )
 
+func createRandomNumberGenerator(seed int64) rand.Rand {
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
+	return *rand.New(rand.NewSource(seed))
+}
+
 func insertionSort(items []sequenceInfo, compare func(sequenceInfo, sequenceInfo) bool, index int) {
 	if index < 1 || index > len(items) {
 		return
@@ -18,15 +25,15 @@ func insertionSort(items []sequenceInfo, compare func(sequenceInfo, sequenceInfo
 	}
 }
 
-func min(a, b int) int {
-	if a <= b {
+func max(a, b int) int {
+	if a >= b {
 		return a
 	}
 	return b
 }
 
-func max(a, b int) int {
-	if a >= b {
+func min(a, b int) int {
+	if a <= b {
 		return a
 	}
 	return b
@@ -35,14 +42,6 @@ func max(a, b int) int {
 func reverseArray(a []string) {
 	for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
 		a[i], a[j] = a[j], a[i]
-	}
-}
-
-func seedRandomNumberGenerator(seed int64) {
-	if seed > 0 {
-		rand.Seed(seed)
-	} else {
-		rand.Seed(time.Now().UnixNano())
 	}
 }
 

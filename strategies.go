@@ -1,18 +1,18 @@
 package genetic
 
-import (
-	"math/rand"
-)
+func (strategy *strategyInfo) nextRand(limit int) int {
+	return strategy.rand.Intn(limit)
+}
 
-func crossover(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+func crossover(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
 	if len(parentA) == 1 || len(parentB) == 1 {
-		return mutate(parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+		return mutationStrategy.generate(mutationStrategy, mutationStrategy, parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 	}
 
-	sourceStart := rand.Intn((len(parentB)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
-	destinationStart := rand.Intn((len(parentA)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
+	sourceStart := strategy.nextRand((len(parentB)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
+	destinationStart := strategy.nextRand((len(parentA)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 	maxLength := min(len(parentA)-destinationStart, len(parentB)-sourceStart)
-	length := (1 + rand.Intn(maxLength/numberOfGenesPerChromosome-1)) * numberOfGenesPerChromosome
+	length := (1 + strategy.nextRand(maxLength/numberOfGenesPerChromosome-1)) * numberOfGenesPerChromosome
 
 	child := ""
 
@@ -29,13 +29,13 @@ func crossover(parentA, parentB, geneSet string, numberOfGenesPerChromosome int,
 	return child
 }
 
-func mutate(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+func mutate(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
 	parent := parentA
 	if useBestParent {
 		parent = parentB
 	}
 
-	parentIndex := rand.Intn(len(parent))
+	parentIndex := strategy.nextRand(len(parent))
 	child := ""
 	if parentIndex > 0 {
 		child += parent[:parentIndex]
@@ -53,19 +53,19 @@ func mutate(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, ne
 	return child
 }
 
-func reverse(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+func reverse(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
 	parent := parentA
 	if useBestParent {
 		parent = parentB
 	}
 
 	if len(parent) == 1 {
-		return mutate(parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+		return mutationStrategy.generate(mutationStrategy, mutationStrategy, parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 	}
 
-	reversePointA := rand.Intn(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
-	reversePointB := rand.Intn(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
-	for ; reversePointA == reversePointB; reversePointB = rand.Intn(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome {
+	reversePointA := strategy.nextRand(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
+	reversePointB := strategy.nextRand(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
+	for ; reversePointA == reversePointB; reversePointB = strategy.nextRand(len(parent)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome {
 	}
 
 	min, max := sort(reversePointA, reversePointB)
@@ -92,19 +92,19 @@ func reverse(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, n
 	return child
 }
 
-func shift(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+func shift(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
 	parent := parentA
 	if useBestParent {
 		parent = parentB
 	}
 
 	if len(parent) < numberOfGenesPerChromosome+1 {
-		return mutate(parent, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+		return mutationStrategy.generate(mutationStrategy, mutationStrategy, parent, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 	}
-	shiftRight := rand.Intn(2) == 1
+	shiftRight := strategy.nextRand(2) == 1
 
-	segmentStart := rand.Intn((len(parent)-numberOfGenesPerChromosome)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
-	segmentCount := 1 + rand.Intn((len(parent)-segmentStart+numberOfGenesPerChromosome)/numberOfGenesPerChromosome-1)
+	segmentStart := strategy.nextRand((len(parent)-numberOfGenesPerChromosome)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
+	segmentCount := 1 + strategy.nextRand((len(parent)-segmentStart+numberOfGenesPerChromosome)/numberOfGenesPerChromosome-1)
 
 	// +2 because first and last will be empty to leave room
 	fragments := make([]string, segmentCount+2)
@@ -141,9 +141,9 @@ func shift(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nex
 	return child
 }
 
-func swap(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
+func swap(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string {
 	if len(parentA) == 1 || len(parentB) == 1 {
-		return mutate(parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
+		return mutationStrategy.generate(mutationStrategy, mutationStrategy, parentA, parentB, geneSet, numberOfGenesPerChromosome, nextGene, useBestParent)
 	}
 
 	parent := parentA
@@ -151,9 +151,9 @@ func swap(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, next
 		parent = parentB
 	}
 
-	parentIndexA := rand.Intn(len(parent))
-	parentIndexB := rand.Intn(len(parent))
-	for ; parentIndexA == parentIndexB; parentIndexB = rand.Intn(len(parent)) {
+	parentIndexA := strategy.nextRand(len(parent))
+	parentIndexB := strategy.nextRand(len(parent))
+	for ; parentIndexA == parentIndexB; parentIndexB = strategy.nextRand(len(parent)) {
 	}
 
 	parentIndexA, parentIndexB = sort(parentIndexA, parentIndexB)

@@ -3,7 +3,6 @@ package genetic
 import (
 	"fmt"
 	"math"
-	"math/rand"
 	"time"
 )
 
@@ -13,12 +12,8 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	maxRoundsWithoutImprovement, numberOfGenesPerChromosome int,
 	bestPossibleFitness int) string {
 
-	seedRandomNumberGenerator(solver.RandSeed)
-	solver.ensureMaxSecondsToRunIsValid()
-	solver.createFitnessComparisonFunctions()
-	solver.initializeStrategies()
-	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
-	solver.needNewlineBeforeDisplay = false
+	solver.initialize(geneSet, numberOfGenesPerChromosome)
+
 	roundsSinceLastImprovement := 0
 	numberOfGenesToUse := numberOfGenesPerChromosome
 	maxLength := numberOfGenesPerChromosome * maxRoundsWithoutImprovement
@@ -118,12 +113,7 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 	geneSet string,
 	numberOfChromosomes, numberOfGenesPerChromosome int) string {
 
-	seedRandomNumberGenerator(solver.RandSeed)
-	solver.ensureMaxSecondsToRunIsValid()
-	solver.createFitnessComparisonFunctions()
-	solver.initializeStrategies()
-	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
-	solver.needNewlineBeforeDisplay = false
+	solver.initialize(geneSet, numberOfGenesPerChromosome)
 
 	defer func() {
 		solver.quit = true
@@ -189,10 +179,10 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 		strategyIndex := <-nextStrategyIndex
 		var strategy = solver.strategies[strategyIndex]
 
-		parent := solver.pool[rand.Intn(len(solver.pool))]
-		useBestParent := rand.Intn(100) == 0
+		parent := solver.pool[solver.nextRand(len(solver.pool))]
+		useBestParent := solver.nextRand(100) == 0
 
-		childGenes := strategy.function(parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, useBestParent)
+		childGenes := strategy.generate(strategy, solver.mutationStrategy, parent.genes, bestParent.genes, geneSet, numberOfGenesPerChromosome, solver.nextGene, useBestParent)
 
 		if solver.distinctPool[childGenes] {
 			if float64(len(solver.distinctPool)) == maxPossiblePermutations {
@@ -315,7 +305,7 @@ func (solver *Solver) ensureMaxSecondsToRunIsValid() {
 }
 
 func (solver *Solver) getNextStrategyIndex() int {
-	strategyIndex := rand.Intn(solver.strategySuccessSum)
+	strategyIndex := solver.nextRand(solver.strategySuccessSum)
 	for i, potentialStrategy := range solver.strategies {
 		if strategyIndex < potentialStrategy.count {
 			strategyIndex = i
@@ -331,11 +321,23 @@ func (solver *Solver) incrementStrategyUseCount(strategyIndex int) {
 	solver.strategySuccessSum++
 }
 
+func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int) {
+	if solver.RandSeed == 0 {
+		solver.RandSeed = time.Now().UnixNano()
+	}
+	solver.rand = createRandomNumberGenerator(solver.RandSeed)
+	solver.ensureMaxSecondsToRunIsValid()
+	solver.createFitnessComparisonFunctions()
+	solver.initializeStrategies()
+	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
+	solver.needNewlineBeforeDisplay = false
+}
+
 func (solver *Solver) initializeChannels(geneSet string, numberOfGenesPerChromosome int) {
 	solver.quit = false
 
 	solver.nextGene = make(chan string, 1+numberOfGenesPerChromosome)
-	go generateGene(solver.nextGene, geneSet, &solver.quit)
+	go generateGene(solver.nextGene, geneSet, &solver.quit, solver.RandSeed)
 
 	solver.nextChromosome = make(chan string, 1)
 	go generateChromosome(solver.nextChromosome, solver.nextGene, geneSet, numberOfGenesPerChromosome, &solver.quit)
@@ -350,13 +352,18 @@ func (solver *Solver) initializePool(numberOfChromosomes, numberOfGenesPerChromo
 
 func (solver *Solver) initializeStrategies() {
 	solver.strategies = []strategyInfo{
-		{"crossover ", crossover, 1, false},
-		{"mutate    ", mutate, 1, true},
-		{"reverse   ", reverse, 1, true},
-		{"shift     ", shift, 1, true},
-		{"swap      ", swap, 1, true},
+		{"crossover ", crossover, 1, false, createRandomNumberGenerator(solver.RandSeed)},
+		{"mutate    ", mutate, 1, true, createRandomNumberGenerator(solver.RandSeed)},
+		{"reverse   ", reverse, 1, true, createRandomNumberGenerator(solver.RandSeed)},
+		{"shift     ", shift, 1, true, createRandomNumberGenerator(solver.RandSeed)},
+		{"swap      ", swap, 1, true, createRandomNumberGenerator(solver.RandSeed)},
 	}
 	solver.strategySuccessSum = len(solver.strategies)
+	solver.mutationStrategy = solver.strategies[1]
+}
+
+func (solver *Solver) nextRand(limit int) int {
+	return solver.rand.Intn(limit)
 }
 
 func (solver *Solver) printNewlineIfNecessary() {

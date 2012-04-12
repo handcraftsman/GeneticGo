@@ -2,7 +2,6 @@ package genetic
 
 import (
 	"bytes"
-	"math/rand"
 )
 
 func generateChromosome(nextChromosome, nextGene chan string, geneSet string, numberOfGenesPerChromosome int, quit *bool) {
@@ -19,9 +18,10 @@ func generateChromosome(nextChromosome, nextGene chan string, geneSet string, nu
 	close(nextChromosome)
 }
 
-func generateGene(nextGene chan string, geneSet string, quit *bool) {
+func generateGene(nextGene chan string, geneSet string, quit *bool, randSeed int64) {
+	localRand := createRandomNumberGenerator(randSeed)
 	for {
-		index := rand.Intn(len(geneSet))
+		index := localRand.Intn(len(geneSet))
 		if *quit {
 			break
 		}

@@ -1,5 +1,7 @@
 package genetic
 
+import "math/rand"
+
 type Solver struct {
 	RandSeed                          int64
 	MaxSecondsToRunWithoutImprovement float64
@@ -14,12 +16,15 @@ type Solver struct {
 
 	strategies         []strategyInfo
 	strategySuccessSum int
+	mutationStrategy   strategyInfo
 
 	needNewlineBeforeDisplay bool
 
 	maxPoolSize  int
 	pool         []sequenceInfo
 	distinctPool map[string]bool
+
+	rand rand.Rand
 }
 
 type sequenceInfo struct {
@@ -29,7 +34,8 @@ type sequenceInfo struct {
 
 type strategyInfo struct {
 	name                         string
-	function                     func(parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string
+	generate                     func(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string
 	count                        int
 	incrementParentSuccessCounts bool
+	rand                         rand.Rand
 }
