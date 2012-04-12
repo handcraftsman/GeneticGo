@@ -31,14 +31,17 @@ then use it in your program:
 	numberOfChromosomes := 10 // you decide
 	numberOfGenesInAChromosome := 1 // you decide
 	
-	// if your problem can be solved with a fixed number of genes:
+if your problem can be solved with a fixed number of genes:
+
 	var result = solver.GetBest(getFitness, display, geneSet, numberOfChromosomes, numberOfGenesInAChromosome)
 
-	maxRoundsWithoutImprovement := 10 // you decide
+alternatively, if you want the gene sequence to grow as necessary:
+
+	solver.MaxRoundsWithoutImprovement = 10 // you decide
 	bestPossibleFitness := 0 // you decide
+	maxNumberOfGenes := 50 // you decide
 	
-	// alternatively, if you want the gene sequence to grow as necessary
-	var result = solver.GetBestUsingHillClimbing(getFitness, display, geneSet, maxRoundsWithoutImprovement, numberOfGenesInAChromosome, bestPossibleFitness)
+	var result = solver.GetBestUsingHillClimbing(getFitness, display, geneSet, maxNumberOfGenes, numberOfGenesInAChromosome, bestPossibleFitness)
 
 	
 ## Sample programs (in order of genetic complexity)
