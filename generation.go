@@ -1,19 +1,20 @@
 package genetic
 
 import (
+	"bytes"
 	"math/rand"
 )
 
 func generateChromosome(nextChromosome, nextGene chan string, geneSet string, numberOfGenesPerChromosome int, quit *bool) {
 	for {
-		c := ""
+		c := bytes.NewBuffer(make([]byte, 0, numberOfGenesPerChromosome))
 		for i := 0; i < numberOfGenesPerChromosome && !*quit; i++ {
-			c += <-nextGene
+			c.WriteString(<-nextGene)
 		}
 		if *quit {
 			break
 		}
-		nextChromosome <- c
+		nextChromosome <- c.String()
 	}
 	close(nextChromosome)
 }
@@ -30,11 +31,11 @@ func generateGene(nextGene chan string, geneSet string, quit *bool) {
 }
 
 func generateParent(nextChromosome chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int) string {
-	s := ""
+	s := bytes.NewBuffer(make([]byte, 0, numberOfChromosomes*numberOfGenesPerChromosome))
 	for i := 0; i < numberOfChromosomes; i++ {
-		s += <-nextChromosome
+		s.WriteString(<-nextChromosome)
 	}
-	return s
+	return s.String()
 }
 
 func populatePool(pool []sequenceInfo, nextChromosome chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int, compareFitnesses func(sequenceInfo, sequenceInfo) bool, getFitness func(string) int) map[string]bool {
@@ -42,7 +43,6 @@ func populatePool(pool []sequenceInfo, nextChromosome chan string, geneSet strin
 	itemGenes := generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 	pool[0] = sequenceInfo{itemGenes, getFitness(itemGenes)}
 
-	
 	for i := 1; i < len(pool); {
 		itemGenes = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 
