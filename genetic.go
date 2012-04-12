@@ -56,6 +56,9 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		if solver.childFitnessIsBetter(result, bestEver) {
 			roundsSinceLastImprovement = 0
 			bestEver = result
+			if bestEver.fitness == bestPossibleFitness {
+				break
+			}
 		} else {
 			roundsSinceLastImprovement++
 			if roundsSinceLastImprovement >= solver.MaxRoundsWithoutImprovement {
