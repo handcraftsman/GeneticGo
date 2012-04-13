@@ -13,14 +13,14 @@ type Direction struct {
 	ydiff int
 }
 
-var North = Direction{0, -1}
-var NorthEast = Direction{1, -1}
-var East = Direction{1, 0}
-var SouthEast = Direction{1, 1}
-var South = Direction{0, 1}
-var SouthWest = Direction{-1, 1}
-var West = Direction{-1, 0}
-var NorthWest = Direction{-1, -1}
+var north = Direction{0, -1}
+var northEast = Direction{1, -1}
+var east = Direction{1, 0}
+var southEast = Direction{1, 1}
+var south = Direction{0, 1}
+var southWest = Direction{-1, 1}
+var west = Direction{-1, 0}
+var northWest = Direction{-1, -1}
 
 const boardWidthHeight = 8
 
@@ -117,10 +117,10 @@ func getFitness(current string, boardWidthHeight int) int {
 
 func getAttackablePositions(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
 	generators := []func(x, y, boardWidthHeight int, nextPosition chan string, quit *bool){
-		generatePositions(North), generatePositions(NorthEast),
-		generatePositions(East), generatePositions(SouthEast),
-		generatePositions(South), generatePositions(SouthWest),
-		generatePositions(West), generatePositions(NorthWest)}
+		generatePositions(north), generatePositions(northEast),
+		generatePositions(east), generatePositions(southEast),
+		generatePositions(south), generatePositions(southWest),
+		generatePositions(west), generatePositions(northWest)}
 
 	for _, generator := range generators {
 		if *quit {
