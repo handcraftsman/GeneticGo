@@ -27,7 +27,7 @@ func main() {
 	solver.MaxSecondsToRunWithoutImprovement = 1
 
 	var best = solver.GetBest(calc, disp, genes, len(target), 1)
-	println(best)
+	fmt.Println(best)
 
 	fmt.Print("Total time: ")
 	fmt.Println(time.Since(start))
