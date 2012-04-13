@@ -1,8 +1,8 @@
 package main
 
 import (
-	".."
 	"fmt"
+	genetic "github.com/handcraftsman/GeneticGo"
 	"strconv"
 	"strings"
 	"time"
@@ -118,6 +118,15 @@ func getAttackablePositions(x, y, boardWidthHeight int, nextPosition chan string
 
 	close(nextPosition)
 }
+
+/*
+func generatePositions(direction, x, y, boardWidthHeight int, nextPosition chan string, quit *bool)
+	return func(x, y, boardWidthHeight, nextPosition, quit) {
+		if direction ==
+		generatePositions(x, y, )
+	}
+}
+*/
 
 func generatePositionsNorth(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
 	generatePositions(x, y, North, Same, boardWidthHeight, nextPosition, quit)

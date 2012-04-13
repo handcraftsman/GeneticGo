@@ -1,8 +1,8 @@
 package main
 
 import (
-	".."
 	"fmt"
+	genetic "github.com/handcraftsman/GeneticGo"
 	"time"
 )
 

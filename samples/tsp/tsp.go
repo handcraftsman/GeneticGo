@@ -1,10 +1,10 @@
 package main
 
 import (
-	".."
 	"flag"
 	"fmt"
 	"github.com/handcraftsman/File"
+	genetic "github.com/handcraftsman/GeneticGo"
 	"math"
 	"strconv"
 	"strings"
