@@ -48,21 +48,21 @@ alternatively, if you want the gene sequence to grow as necessary:
 
 - string_duplication.go - duplicates a string, see [related blog post](http://handcraftsman.wordpress.com/2012/03/27/first-program-in-go-simple-genetic-solver/)
 
-    go run samples/string_duplication.go
+    go run samples/string_duplication/string_duplication.go
 
 - 8queens.go - solves the 8 Queens Puzzle, see [related blog post](http://handcraftsman.wordpress.com/2012/03/30/solving-the-8-queens-puzzle-with-go/)
 
-    go run samples/8queens.go
+    go run samples/8queens/8queens.go
 
 - tsp.go - travelling salesperson problem solver. See [related blog post](http://handcraftsman.wordpress.com/2012/04/02/go-implementation-of-a-travelling-salesperson-problem-solver/)
 
 	prerequisite: go get "github.com/handcraftsman/File"
 
-	go run samples/tsp.go samples/data/tsp/eil51.tsp
+	go run samples/tsp/tsp.go samples/data/tsp/eil51.tsp
 
 - regex.go - genetically builds a regular expression. See [related blog post](http://handcraftsman.wordpress.com/2012/04/11/evolving-a-regular-expression-with-go/)
 
-	go run samples/regex.go
+	go run samples/regex/regex.go
 	
 ## License		
 
