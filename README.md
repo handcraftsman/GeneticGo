@@ -28,20 +28,20 @@ then use it in your program:
 	
 	// each gene is a single character
 	geneSet := "abc123..." // you decide the set of valid genes
-	numberOfChromosomes := 10 // you decide
 	numberOfGenesInAChromosome := 1 // you decide
 	
 if your problem can be solved with a fixed number of genes:
 
+	numberOfChromosomes := 10 // you decide
 	var result = solver.GetBest(getFitness, display, geneSet, numberOfChromosomes, numberOfGenesInAChromosome)
 
 alternatively, if you want the gene sequence to grow as necessary:
 
 	solver.MaxRoundsWithoutImprovement = 10 // you decide
 	bestPossibleFitness := 0 // you decide
-	maxNumberOfGenes := 50 // you decide
+	maxNumberOfChromosomes := 50 // you decide
 	
-	var result = solver.GetBestUsingHillClimbing(getFitness, display, geneSet, maxNumberOfGenes, numberOfGenesInAChromosome, bestPossibleFitness)
+	var result = solver.GetBestUsingHillClimbing(getFitness, display, geneSet, maxNumberOfChromosomes, numberOfGenesInAChromosome, bestPossibleFitness)
 
 	
 ## Sample programs (in order of genetic complexity)
