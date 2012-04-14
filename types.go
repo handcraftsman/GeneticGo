@@ -1,6 +1,9 @@
 package genetic
 
-import "math/rand"
+import (
+	"math/rand"
+	"sync"
+)
 
 type Solver struct {
 	RandSeed                          int64
@@ -12,32 +15,32 @@ type Solver struct {
 
 	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other sequenceInfo) bool
 
-	quit                     bool
+	quit                     chan bool
 	nextGene, nextChromosome chan string
 
-	strategies             []strategyInfo
-	strategySuccessSum     int
-	mutationStrategyIndex  int
-	crossoverStrategyIndex int
+	strategies         []strategyInfo
+	maxStrategySuccess int
 
 	needNewlineBeforeDisplay bool
 
 	maxPoolSize  int
 	pool         []sequenceInfo
 	distinctPool map[string]bool
+	poolLock     sync.Mutex
 
 	rand rand.Rand
 }
 
 type sequenceInfo struct {
-	genes   string
-	fitness int
+	genes    string
+	fitness  int
+	strategy strategyInfo
 }
 
 type strategyInfo struct {
-	name                         string
-	generate                     func(strategy, mutationStrategy strategyInfo, parentA, parentB, geneSet string, numberOfGenesPerChromosome int, nextGene chan string, useBestParent bool) string
-	count                        int
-	incrementParentSuccessCounts bool
-	rand                         rand.Rand
+	name         string
+	start        func(strategyIndex int)
+	successCount int
+	results      chan sequenceInfo
+	index        int
 }
