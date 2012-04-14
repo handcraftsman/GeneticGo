@@ -1,14 +1,27 @@
 package main
 
 import (
-	".."
 	"fmt"
+	genetic "github.com/handcraftsman/GeneticGo"
 	"strconv"
 	"strings"
 	"time"
 )
 
-const North, West, South, East, Same int = -1, -1, 1, 1, 0
+type Direction struct {
+	xdiff int
+	ydiff int
+}
+
+var north = Direction{0, -1}
+var northEast = Direction{1, -1}
+var east = Direction{1, 0}
+var southEast = Direction{1, 1}
+var south = Direction{0, 1}
+var southWest = Direction{-1, 1}
+var west = Direction{-1, 0}
+var northWest = Direction{-1, -1}
+
 const boardWidthHeight = 8
 
 func main() {
@@ -25,10 +38,10 @@ func main() {
 
 	disp := func(current string) {
 		display(current, boardWidthHeight)
-		print(current)
-		print("\t")
-		print(getFitness(current, boardWidthHeight))
-		print("\t")
+		fmt.Print(current)
+		fmt.Print("\t")
+		fmt.Print(getFitness(current, boardWidthHeight))
+		fmt.Print("\t")
 		fmt.Println(time.Since(start))
 	}
 
@@ -37,23 +50,23 @@ func main() {
 
 	var best = solver.GetBest(calc, disp, genes, boardWidthHeight, 2)
 	disp(best)
-	print("Total time: ")
+	fmt.Print("Total time: ")
 	fmt.Println(time.Since(start))
 }
 
 func display(current string, boardWidthHeight int) {
 	board := convertGenesToBoard(current)
-	println()
+	fmt.Println()
 	for y := 0; y < boardWidthHeight; y++ {
 		for x := 0; x < boardWidthHeight; x++ {
 			key := strconv.Itoa(x) + "," + strconv.Itoa(y)
 			if board[key] {
-				print("Q ")
+				fmt.Print("Q ")
 			} else {
-				print(". ")
+				fmt.Print(". ")
 			}
 		}
-		println()
+		fmt.Println()
 	}
 }
 
@@ -104,10 +117,10 @@ func getFitness(current string, boardWidthHeight int) int {
 
 func getAttackablePositions(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
 	generators := []func(x, y, boardWidthHeight int, nextPosition chan string, quit *bool){
-		generatePositionsNorth, generatePositionsNorthEast,
-		generatePositionsEast, generatePositionsSouthEast,
-		generatePositionsSouth, generatePositionsSouthWest,
-		generatePositionsWest, generatePositionsNorthWest}
+		generatePositions(north), generatePositions(northEast),
+		generatePositions(east), generatePositions(southEast),
+		generatePositions(south), generatePositions(southWest),
+		generatePositions(west), generatePositions(northWest)}
 
 	for _, generator := range generators {
 		if *quit {
@@ -119,48 +132,18 @@ func getAttackablePositions(x, y, boardWidthHeight int, nextPosition chan string
 	close(nextPosition)
 }
 
-func generatePositionsNorth(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, North, Same, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsSouth(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, South, Same, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsWest(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, Same, West, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsEast(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, Same, East, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsNorthEast(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, North, East, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsNorthWest(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, North, West, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsSouthEast(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, South, East, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositionsSouthWest(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	generatePositions(x, y, South, West, boardWidthHeight, nextPosition, quit)
-}
-
-func generatePositions(x, y, yDifference, xDifference, boardWidthHeight int, nextPosition chan string, quit *bool) {
-	x += xDifference
-	y += yDifference
-	for y >= 0 && y < boardWidthHeight && x >= 0 && x < boardWidthHeight {
-		if *quit {
-			return
+func generatePositions(direction Direction) func(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+	return func(x, y, boardWidthHeight int, nextPosition chan string, quit *bool) {
+		x += direction.xdiff
+		y += direction.ydiff
+		for y >= 0 && y < boardWidthHeight && x >= 0 && x < boardWidthHeight {
+			if *quit {
+				return
+			}
+			nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
+			x += direction.xdiff
+			y += direction.ydiff
 		}
-		nextPosition <- strconv.Itoa(x) + "," + strconv.Itoa(y)
-		x += xDifference
-		y += yDifference
 	}
 }
 

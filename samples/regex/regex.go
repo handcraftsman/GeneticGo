@@ -1,8 +1,8 @@
 package main
 
 import (
-	".."
 	"fmt"
+	genetic "github.com/handcraftsman/GeneticGo"
 	"math"
 	"regexp"
 	"strings"
@@ -39,9 +39,9 @@ func main() {
 	fitness := calc(best)
 
 	if fitness == 0 {
-		println("\nsolved with: " + best)
+		fmt.Println("\nsolved with: " + best)
 	} else {
-		println("\nfailed to find a solution")
+		fmt.Println("\nfailed to find a solution")
 	}
 
 	fmt.Print("Total time: ")

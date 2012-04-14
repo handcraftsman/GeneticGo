@@ -1,10 +1,10 @@
 package main
 
 import (
-	".."
 	"flag"
 	"fmt"
 	"github.com/handcraftsman/File"
+	genetic "github.com/handcraftsman/GeneticGo"
 	"math"
 	"strconv"
 	"strings"
@@ -16,18 +16,18 @@ const genericGeneSet string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVW
 func main() {
 	flag.Parse()
 	if flag.NArg() != 1 {
-		println("Usage: go run samples/tsp.go ROUTEFILEPATH")
+		fmt.Println("Usage: go run samples/tsp.go ROUTEFILEPATH")
 		return
 	}
 	var routeFileName = flag.Arg(0)
 	if !File.Exists(routeFileName) {
-		println("file " + routeFileName + " does not exist.")
+		fmt.Println("file " + routeFileName + " does not exist.")
 		return
 	}
-	println("using route file: " + routeFileName)
+	fmt.Println("using route file: " + routeFileName)
 
 	idToPointLookup := readPoints(routeFileName)
-	println("read " + strconv.Itoa(len(idToPointLookup)) + " points...")
+	fmt.Println("read " + strconv.Itoa(len(idToPointLookup)) + " points...")
 
 	calc := func(genes string) int {
 		points := genesToPoints(genes, idToPointLookup)
@@ -35,18 +35,18 @@ func main() {
 	}
 
 	if File.Exists(routeFileName + ".opt.tour") {
-		println("found optimal solution file: " + routeFileName + ".opt")
+		fmt.Println("found optimal solution file: " + routeFileName + ".opt")
 		optimalRoute := readOptimalRoute(routeFileName+".opt.tour", len(idToPointLookup))
-		println("read " + strconv.Itoa(len(optimalRoute)) + " segments in the optimal route")
+		fmt.Println("read " + strconv.Itoa(len(optimalRoute)) + " segments in the optimal route")
 		points := getPointsInOptimalOrder(idToPointLookup, optimalRoute)
 		genes := genericGeneSet[0:len(idToPointLookup)]
 		idToPointLookup = make(map[string]Point, len(idToPointLookup))
 		for i, v := range points {
 			idToPointLookup[genericGeneSet[i:i+1]] = v
 		}
-		print("optimal route: " + genes)
-		print("\t")
-		println(getFitness(genes, points))
+		fmt.Print("optimal route: " + genes)
+		fmt.Print("\t")
+		fmt.Println(getFitness(genes, points))
 	}
 
 	genes := genericGeneSet[0:len(idToPointLookup)]
@@ -55,10 +55,10 @@ func main() {
 
 	disp := func(genes string) {
 		points := genesToPoints(genes, idToPointLookup)
-		print(genes)
-		print("\t")
-		print(getFitness(genes, points))
-		print("\t")
+		fmt.Print(genes)
+		fmt.Print("\t")
+		fmt.Print(getFitness(genes, points))
+		fmt.Print("\t")
 		fmt.Println(time.Since(start))
 	}
 
@@ -68,7 +68,7 @@ func main() {
 
 	var best = solver.GetBest(calc, disp, genes, len(idToPointLookup), 1)
 	disp(best)
-	print("Total time: ")
+	fmt.Print("Total time: ")
 	fmt.Println(time.Since(start))
 }
 
