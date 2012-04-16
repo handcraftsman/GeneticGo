@@ -9,16 +9,16 @@ import (
 func main() {
 	const genes = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!."
 	target := "Not all those who wander are lost."
-	calc := func(current string) int {
-		return calculate(target, current)
+	calc := func(candidate string) int {
+		return calculate(target, candidate)
 	}
 
 	start := time.Now()
 
-	disp := func(current string) {
-		fmt.Print(current)
+	disp := func(candidate string) {
+		fmt.Print(candidate)
 		fmt.Print("\t")
-		fmt.Print(calc(current))
+		fmt.Print(calc(candidate))
 		fmt.Print("\t")
 		fmt.Println(time.Since(start))
 	}
@@ -27,18 +27,29 @@ func main() {
 	solver.MaxSecondsToRunWithoutImprovement = 1
 
 	var best = solver.GetBest(calc, disp, genes, len(target), 1)
+	fmt.Println()
 	fmt.Println(best)
 
 	fmt.Print("Total time: ")
 	fmt.Println(time.Since(start))
 }
 
-func calculate(target, current string) int {
+func calculate(target, candidate string) int {
 	differenceCount := 0
-	for i := 0; i < len(target); i++ {
-		if target[i] != current[i] {
+	minLen := len(target)
+	if len(candidate) < minLen {
+		minLen = len(candidate)
+	}
+	for i := 0; i < minLen; i++ {
+		if target[i] != candidate[i] {
 			differenceCount++
 		}
 	}
-	return len(target) - differenceCount
+
+	fitness := len(target) - differenceCount
+	if len(target) != len(candidate) {
+		fitness -= 1000
+	}
+
+	return fitness
 }

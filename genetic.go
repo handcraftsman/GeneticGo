@@ -35,9 +35,10 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		}
 	}()
 
-	filteredDisplay := func(item sequenceInfo) {
-		if solver.childFitnessIsBetter(item, bestEver) {
-			display(item.genes)
+	filteredDisplay := func(item *sequenceInfo) {
+		if solver.childFitnessIsBetter(*item, bestEver) {
+			display((*item).genes)
+			bestEver = *item
 		}
 	}
 
@@ -99,7 +100,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 					if solver.PrintStrategyUsage {
 						fmt.Print("climb     ")
 					}
-					filteredDisplay(child)
+					display(child.genes)
 					bestEver = child
 					improved = true
 				}
@@ -141,8 +142,14 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 	solver.initializePool(numberOfChromosomes, numberOfGenesPerChromosome, geneSet, initialParent, getFitness)
 	solver.initializeStrategies(numberOfGenesPerChromosome, getFitness)
 
-	best := solver.getBestWithInitialParent(getFitness,
-		func(sequence sequenceInfo) { display(sequence.genes) },
+	best := *new(sequenceInfo)
+	displayCaptureBest := func(sequence *sequenceInfo) {
+		display((*sequence).genes)
+		best = *sequence
+	}
+
+	solver.getBestWithInitialParent(getFitness,
+		displayCaptureBest,
 		geneSet,
 		numberOfChromosomes,
 		numberOfGenesPerChromosome)
@@ -154,7 +161,7 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 }
 
 func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
-	display func(sequenceInfo),
+	display func(*sequenceInfo),
 	geneSet string,
 	numberOfChromosomes, numberOfGenesPerChromosome int) sequenceInfo {
 
@@ -222,14 +229,13 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 			if solver.PrintStrategyUsage {
 				fmt.Print((*child).strategy.name)
 			}
-			display(*child)
+			display(child)
 
 			if solver.pool[0].genes == (*(*child).parent).genes {
 				solver.successParentIsBestParentCount++
 			}
 			solver.numberOfImprovements++
 
-			solver.pool[0] = *child
 			if solver.PrintDiagnosticInfo {
 				fmt.Print("+")
 				solver.needNewlineBeforeDisplay = true
@@ -409,7 +415,7 @@ func (solver *Solver) printStrategyUsage() {
 
 	fmt.Println("\nNew champions were children of the reigning champion",
 		100*solver.successParentIsBestParentCount/solver.numberOfImprovements,
-		"% of the time.\n")
+		"% of the time.")
 }
 
 func (solver *Solver) shouldAddChild(child *sequenceInfo, getFitness func(string) int) bool {

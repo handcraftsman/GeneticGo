@@ -5,20 +5,20 @@ import (
 	"strings"
 )
 
-func (solver *Solver) getMutationStrategyResultChannel() chan *sequenceInfo {
-	mutateStrategyResults := solver.strategies[0].results
+func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
+	strategyResults := solver.strategies[0].results
 	for _, strategy := range solver.strategies {
-		if strings.Contains(strategy.name, "mutate") {
-			mutateStrategyResults = strategy.results
+		if strings.Contains(strategy.name, name) {
+			strategyResults = strategy.results
 			break
 		}
 	}
-	return mutateStrategyResults
+	return strategyResults
 }
 
-func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
-	mutateStrategyResults := solver.getMutationStrategyResultChannel()
+	swapStrategyResults := solver.getStrategyResultChannel("swap")
 
 	for {
 		select {
@@ -26,7 +26,56 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 			solver.quit <- true
 			return
 		default:
-			break
+		}
+
+		if random.Intn(100) != 0 {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case child := <-swapStrategyResults:
+				strategy.results <- child
+				continue
+			}
+		}
+
+		parentA := <-solver.randomParent
+		parentAgenes := (*parentA).genes
+		parentB := <-solver.randomParent
+		parentBgenes := (*parentB).genes
+		for parentBgenes == parentAgenes {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case parentB = <-solver.randomParent:
+				parentBgenes = (*parentB).genes
+			}
+		}
+
+		childGenes := parentAgenes + parentBgenes[len(parentBgenes)-numberOfGenesPerChromosome:]
+
+		child := sequenceInfo{genes: childGenes, strategy: strategy, parent: parentA}
+
+		select {
+		case strategy.results <- &child:
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		}
+	}
+}
+
+func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+	random := createRandomNumberGenerator(solver.RandSeed)
+	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+
+	for {
+		select {
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		default:
 		}
 
 		parentA := <-solver.randomParent
@@ -34,7 +83,7 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 		parentB := <-solver.randomParent
 		parentBgenes := (*parentB).genes
 
-		if len(parentAgenes) == 1 || len(parentBgenes) == 1 {
+		if len(parentAgenes) == numberOfGenesPerChromosome || len(parentBgenes) == numberOfGenesPerChromosome {
 			select {
 			case <-solver.quit:
 				solver.quit <- true
@@ -82,7 +131,6 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 			solver.quit <- true
 			return
 		default:
-			break
 		}
 
 		parent := <-solver.randomParent
@@ -97,16 +145,19 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 
 		currentGene := parentGenes[parentIndex : parentIndex+1]
 
-		for {
-			gene := <-solver.nextGene
-			if len(gene) != 1 {
+		gene := currentGene
+		for gene == currentGene {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
 				return
-			}
-			if gene != currentGene {
-				childGenes.WriteString(gene)
-				break
+			case gene = <-solver.nextGene:
+				if len(gene) != 1 {
+					return
+				}
 			}
 		}
+		childGenes.WriteString(gene)
 
 		if parentIndex+1 < len(parentGenes) {
 			childGenes.WriteString(parentGenes[parentIndex+1:])
@@ -123,9 +174,9 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 	}
 }
 
-func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
-	mutateStrategyResults := solver.getMutationStrategyResultChannel()
+	swapStrategyResults := solver.getStrategyResultChannel("swap")
 
 	for {
 		select {
@@ -133,13 +184,64 @@ func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome 
 			solver.quit <- true
 			return
 		default:
-			break
+		}
+
+		parent := <-solver.randomParent
+		if len(parent.genes) == numberOfGenesPerChromosome {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case child := <-swapStrategyResults:
+				strategy.results <- child
+				continue
+			}
+		}
+
+		// prefer removing from the end
+		parentGenes := (*parent).genes
+		index := len(parentGenes) - numberOfGenesPerChromosome
+		for ; index >= 0; index -= numberOfGenesPerChromosome {
+			if random.Intn(10) == 0 {
+				break
+			}
+		}
+
+		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
+		if index > 0 {
+			childGenes.WriteString(parentGenes[0:index])
+		}
+		if index < len(parentGenes)-numberOfGenesPerChromosome {
+			childGenes.WriteString(parentGenes[index+numberOfGenesPerChromosome:])
+		}
+
+		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
+
+		select {
+		case strategy.results <- &child:
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		}
+	}
+}
+
+func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+	random := createRandomNumberGenerator(solver.RandSeed)
+	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+
+	for {
+		select {
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		default:
 		}
 
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
 
-		if len(parent.genes) == 1 {
+		if len(parent.genes) == numberOfGenesPerChromosome {
 			select {
 			case <-solver.quit:
 				solver.quit <- true
@@ -189,7 +291,7 @@ func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome 
 
 func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
-	mutateStrategyResults := solver.getMutationStrategyResultChannel()
+	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
 		select {
@@ -197,7 +299,6 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 			solver.quit <- true
 			return
 		default:
-			break
 		}
 
 		parent := <-solver.randomParent
@@ -263,7 +364,7 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 
 func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
-	mutateStrategyResults := solver.getMutationStrategyResultChannel()
+	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
 		select {
@@ -271,7 +372,6 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 			solver.quit <- true
 			return
 		default:
-			break
 		}
 
 		parent := <-solver.randomParent
@@ -327,11 +427,17 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 
 func (solver *Solver) initializeStrategies(numberOfGenesPerChromosome int, getFitness func(string) int) {
 	solver.strategies = []strategyInfo{
+		{name: "add       ", start: func(strategyIndex int) {
+			solver.add(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
 		{name: "crossover ", start: func(strategyIndex int) {
 			solver.crossover(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
 		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
 		{name: "mutate    ", start: func(strategyIndex int) {
 			solver.mutate(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		{name: "remove    ", start: func(strategyIndex int) {
+			solver.remove(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
 		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
 		{name: "reverse   ", start: func(strategyIndex int) {
 			solver.reverse(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)

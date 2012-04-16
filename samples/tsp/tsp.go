@@ -29,9 +29,8 @@ func main() {
 	idToPointLookup := readPoints(routeFileName)
 	fmt.Println("read " + strconv.Itoa(len(idToPointLookup)) + " points...")
 
-	calc := func(genes string) int {
-		points := genesToPoints(genes, idToPointLookup)
-		return getFitness(genes, points)
+	calc := func(candidate string) int {
+		return getFitness(candidate, idToPointLookup)
 	}
 
 	if File.Exists(routeFileName + ".opt.tour") {
@@ -46,18 +45,17 @@ func main() {
 		}
 		fmt.Print("optimal route: " + genes)
 		fmt.Print("\t")
-		fmt.Println(getFitness(genes, points))
+		fmt.Println(getFitness(genes, idToPointLookup))
 	}
 
-	genes := genericGeneSet[0:len(idToPointLookup)]
+	geneSet := genericGeneSet[0:len(idToPointLookup)]
 
 	start := time.Now()
 
-	disp := func(genes string) {
-		points := genesToPoints(genes, idToPointLookup)
-		fmt.Print(genes)
+	disp := func(candidate string) {
+		fmt.Print(candidate)
 		fmt.Print("\t")
-		fmt.Print(getFitness(genes, points))
+		fmt.Print(getFitness(candidate, idToPointLookup))
 		fmt.Print("\t")
 		fmt.Println(time.Since(start))
 	}
@@ -66,38 +64,50 @@ func main() {
 	solver.MaxSecondsToRunWithoutImprovement = 20
 	solver.LowerFitnessesAreBetter = true
 
-	var best = solver.GetBest(calc, disp, genes, len(idToPointLookup), 1)
-	disp(best)
+	var best = solver.GetBest(calc, disp, geneSet, len(idToPointLookup), 1)
+	fmt.Println()
+	fmt.Println(best, "\t", getFitness(best, idToPointLookup))
 	fmt.Print("Total time: ")
 	fmt.Println(time.Since(start))
 }
 
-func genesToPoints(genes string, idToPointLookup map[string]Point) []Point {
+func genesToPoints(candidate string, idToPointLookup map[string]Point) []Point {
 	points := make([]Point, len(idToPointLookup))
-	if len(genes) != len(idToPointLookup) {
-		panic(genes + " - incorrect gene sequence length")
+	minLen := len(idToPointLookup)
+	if len(candidate) < minLen {
+		minLen = len(candidate)
 	}
-	for i := 0; i < len(genes); i++ {
-		geneId := genes[i : i+1]
+	for i := 0; i < minLen; i++ {
+		geneId := candidate[i : i+1]
 		point := idToPointLookup[geneId]
 		points[i] = point
 	}
 	return points
 }
 
-func getFitness(genes string, points []Point) int {
+func getFitness(candidate string, idToPointLookup map[string]Point) int {
+	points := genesToPoints(candidate, idToPointLookup)
+
 	distinctPoints := make(map[string]bool)
 
-	for i := 0; i < len(genes); i++ {
-		distinctPoints[genes[i:i+1]] = true
+	for i := 0; i < len(candidate); i++ {
+		distinctPoints[candidate[i:i+1]] = true
 	}
 
 	fitness := getDistance(points[0], points[len(points)-1])
 	for i := 0; i < len(points)-1; i++ {
 		fitness += getDistance(points[i], points[i+1])
 	}
-	if len(distinctPoints) != len(genes) {
-		fitness += 10000 * (len(genes) - len(distinctPoints))
+	if len(distinctPoints) != len(candidate) {
+		fitness += 10000 * (len(candidate) - len(distinctPoints))
+	}
+	if len(idToPointLookup) != len(candidate) {
+		max := len(idToPointLookup)
+		min := len(candidate)
+		if max < min {
+			min, max = max, min
+		}
+		fitness += 10000 * (max - min)
 	}
 	return fitness
 }

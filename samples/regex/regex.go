@@ -17,21 +17,21 @@ func main() {
 
 	geneSet := getUniqueCharacters(wanted) + regexSpecials
 
-	calc := func(genes string) int {
-		return calculate(wanted, unwanted, geneSet, genes)
+	calc := func(candidate string) int {
+		return calculate(wanted, unwanted, geneSet, candidate)
 	}
 	start := time.Now()
 
-	disp := func(genes string) {
-		fmt.Println(genes,
+	disp := func(candidate string) {
+		fmt.Println(candidate,
 			"\t",
-			calc(genes),
+			calc(candidate),
 			"\t",
 			time.Since(start))
 	}
 
 	var solver = new(genetic.Solver)
-	solver.MaxSecondsToRunWithoutImprovement = 3
+	solver.MaxSecondsToRunWithoutImprovement = .3
 	solver.LowerFitnessesAreBetter = true
 	solver.MaxRoundsWithoutImprovement = 10
 
@@ -42,6 +42,9 @@ func main() {
 		fmt.Println("\nsolved with: " + best)
 	} else {
 		fmt.Println("\nfailed to find a solution")
+		fmt.Println("consider increasing the following:")
+		fmt.Println("\tsolver.MaxSecondsToRunWithoutImprovement")
+		fmt.Println("\tsolver.MaxRoundsWithoutImprovement")
 	}
 
 	fmt.Print("Total time: ")
@@ -64,12 +67,12 @@ func getUniqueCharacters(wanted []string) string {
 	return characters
 }
 
-func calculate(wanted, unwanted []string, geneSet string, genes string) int {
-	if !isValidRegex(genes) {
+func calculate(wanted, unwanted []string, geneSet, candidate string) int {
+	if !isValidRegex(candidate) {
 		return math.MaxInt32
 	}
 
-	regex := regexp.MustCompile("^(" + genes + ")$")
+	regex := regexp.MustCompile("^(" + candidate + ")$")
 	fitness := 0
 	for _, item := range wanted {
 		if !regex.MatchString(item) {
@@ -86,11 +89,11 @@ func calculate(wanted, unwanted []string, geneSet string, genes string) int {
 	return fitness
 }
 
-func isValidRegex(genes string) bool {
-	if strings.Contains(genes, "()") || strings.Contains(genes, "??") {
+func isValidRegex(candidate string) bool {
+	if strings.Contains(candidate, "()") || strings.Contains(candidate, "??") {
 		return false
 	}
 
-	_, err := regexp.Compile(genes)
+	_, err := regexp.Compile(candidate)
 	return err == nil
 }

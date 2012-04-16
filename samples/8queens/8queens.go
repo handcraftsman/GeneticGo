@@ -32,15 +32,15 @@ func main() {
 
 	start := time.Now()
 
-	calc := func(current string) int {
-		return getFitness(current, boardWidthHeight)
+	calc := func(candidate string) int {
+		return getFitness(candidate, boardWidthHeight)
 	}
 
-	disp := func(current string) {
-		display(current, boardWidthHeight)
-		fmt.Print(current)
+	disp := func(candidate string) {
+		display(candidate, boardWidthHeight)
+		fmt.Print(candidate)
 		fmt.Print("\t")
-		fmt.Print(getFitness(current, boardWidthHeight))
+		fmt.Print(getFitness(candidate, boardWidthHeight))
 		fmt.Print("\t")
 		fmt.Println(time.Since(start))
 	}
@@ -54,8 +54,8 @@ func main() {
 	fmt.Println(time.Since(start))
 }
 
-func display(current string, boardWidthHeight int) {
-	board := convertGenesToBoard(current)
+func display(candidate string, boardWidthHeight int) {
+	board := convertGenesToBoard(candidate)
 	fmt.Println()
 	for y := 0; y < boardWidthHeight; y++ {
 		for x := 0; x < boardWidthHeight; x++ {
@@ -70,10 +70,10 @@ func display(current string, boardWidthHeight int) {
 	}
 }
 
-func getFitness(current string, boardWidthHeight int) int {
+func getFitness(candidate string, boardWidthHeight int) int {
 	distinctX := make(map[int]bool)
 	distinctY := make(map[int]bool)
-	board := convertGenesToBoard(current)
+	board := convertGenesToBoard(candidate)
 
 	safeQueens := 0
 	for coordinate, _ := range board {
@@ -111,6 +111,9 @@ func getFitness(current string, boardWidthHeight int) int {
 		}
 	}
 	fitness := 1000*len(board) + safeQueens*100 + len(distinctX)*len(distinctY)
+	if len(candidate) > boardWidthHeight*2 {
+		fitness -= 10000
+	}
 
 	return fitness
 }
