@@ -55,7 +55,7 @@ func populatePool(pool []sequenceInfo, nextChromosome chan string, geneSet strin
 	distinctPool := make(map[string]bool, len(pool))
 	itemGenes := generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 	initialStrategy := strategyInfo{name: "initial   "}
-	pool[0] = sequenceInfo{itemGenes, getFitness(itemGenes), initialStrategy}
+	pool[0] = sequenceInfo{genes: itemGenes, fitness: getFitness(itemGenes), strategy: initialStrategy}
 
 	for i := 1; i < len(pool); {
 		itemGenes = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
@@ -65,7 +65,7 @@ func populatePool(pool []sequenceInfo, nextChromosome chan string, geneSet strin
 		}
 		distinctPool[itemGenes] = true
 
-		pool[i] = sequenceInfo{itemGenes, getFitness(itemGenes), initialStrategy}
+		pool[i] = sequenceInfo{genes: itemGenes, fitness: getFitness(itemGenes), strategy: initialStrategy}
 
 		insertionSort(pool, compareFitnesses, i)
 		i++

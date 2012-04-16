@@ -17,30 +17,35 @@ type Solver struct {
 
 	quit                     chan bool
 	nextGene, nextChromosome chan string
+	randomParent             chan *sequenceInfo
 
-	strategies         []strategyInfo
-	maxStrategySuccess int
+	strategies                     []strategyInfo
+	maxStrategySuccess             int
+	numberOfImprovements           int
+	successParentIsBestParentCount int
 
 	needNewlineBeforeDisplay bool
 
-	maxPoolSize  int
-	pool         []sequenceInfo
-	distinctPool map[string]bool
-	poolLock     sync.Mutex
+	maxPoolSize      int
+	pool             []sequenceInfo
+	poolLock         sync.Mutex
+	distinctPool     map[string]bool
+	distinctPoolLock sync.Mutex
 
-	rand rand.Rand
+	random rand.Rand
 }
 
 type sequenceInfo struct {
 	genes    string
 	fitness  int
 	strategy strategyInfo
+	parent   *sequenceInfo
 }
 
 type strategyInfo struct {
 	name         string
 	start        func(strategyIndex int)
 	successCount int
-	results      chan sequenceInfo
+	results      chan *sequenceInfo
 	index        int
 }
