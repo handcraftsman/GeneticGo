@@ -31,14 +31,13 @@ func main() {
 	}
 
 	var solver = new(genetic.Solver)
-	solver.MaxSecondsToRunWithoutImprovement = .3
-	solver.LowerFitnessesAreBetter = true
-	solver.MaxRoundsWithoutImprovement = 10
+	solver.MaxSecondsToRunWithoutImprovement = 1
+	solver.MaxRoundsWithoutImprovement = 2
 
-	var best = solver.GetBestUsingHillClimbing(calc, disp, geneSet, 10, 1, 0)
-	fitness := calc(best)
+	var best = solver.GetBestUsingHillClimbing(calc, disp, geneSet, 10, 1, math.MaxInt32)
 
-	if fitness == 0 {
+	matches, misses := getMatchResults(wanted, unwanted, geneSet, best)
+	if matches == len(wanted) && misses == 0 {
 		fmt.Println("\nsolved with: " + best)
 	} else {
 		fmt.Println("\nfailed to find a solution")
@@ -69,24 +68,39 @@ func getUniqueCharacters(wanted []string) string {
 
 func calculate(wanted, unwanted []string, geneSet, candidate string) int {
 	if !isValidRegex(candidate) {
-		return math.MaxInt32
+		return 0
+	}
+
+	matches, misses := getMatchResults(wanted, unwanted, geneSet, candidate)
+
+	fitness := matches - 2*misses
+	if matches == len(wanted) && misses == 0 {
+		fitness += 1000 - len(candidate)
+	}
+	return fitness
+}
+
+func getMatchResults(wanted, unwanted []string, geneSet, candidate string) (int, int) {
+	if !isValidRegex(candidate) {
+		return 0, len(unwanted)
 	}
 
 	regex := regexp.MustCompile("^(" + candidate + ")$")
-	fitness := 0
+	successCount := 0
 	for _, item := range wanted {
-		if !regex.MatchString(item) {
-			fitness++
+		if regex.MatchString(item) {
+			successCount++
 		}
 	}
 
+	failureCount := 0
 	for _, item := range unwanted {
 		if regex.MatchString(item) {
-			fitness += 10
+			failureCount++
 		}
 	}
 
-	return fitness
+	return successCount, failureCount
 }
 
 func isValidRegex(candidate string) bool {
