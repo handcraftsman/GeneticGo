@@ -110,18 +110,7 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 
 func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
-
-	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
-		parent := <-solver.randomParent
-		parentGenes := (*parent).genes
-
+	mutateOneGene := func(parentGenes string) (string, bool) {
 		parentIndex := random.Intn(len(parentGenes))
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
@@ -136,10 +125,10 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 			select {
 			case <-solver.quit:
 				solver.quit <- true
-				return
+				return "", true
 			case gene = <-solver.nextGene:
 				if len(gene) != 1 {
-					return
+					return "", true
 				}
 			}
 		}
@@ -148,8 +137,30 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 		if parentIndex+1 < len(parentGenes) {
 			childGenes.WriteString(parentGenes[parentIndex+1:])
 		}
+		return childGenes.String(), false
+	}
 
-		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
+	for {
+		select {
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		default:
+		}
+
+		parent := <-solver.randomParent
+		childGenes, quit := mutateOneGene((*parent).genes)
+		if quit {
+			return
+		}
+		if random.Intn(2) == 1 {
+			childGenes, quit = mutateOneGene(childGenes)
+			if quit {
+				return
+			}
+		}
+
+		child := sequenceInfo{genes: childGenes, strategy: strategy, parent: parent}
 
 		select {
 		case strategy.results <- &child:
