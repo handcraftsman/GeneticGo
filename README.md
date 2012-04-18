@@ -1,6 +1,6 @@
-# GeneticGo - genetic algorithm library written in Go
+# GeneticGo - genetic problem solver written in Go
 
-This genetic solver adaptively adjusts the strategies being used to those that are successful at improving results.
+This genetic solver adaptively adjusts the strategies being used to those that are most successful at finding solutions to your problem.
 
 ## Usage
 
