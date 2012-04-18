@@ -18,13 +18,6 @@ func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
 
 func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parentA := <-solver.randomParent
 		parentAgenes := (*parentA).genes
 		parentB := <-solver.randomParent
@@ -57,13 +50,6 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parentA := <-solver.randomParent
 		parentAgenes := (*parentA).genes
 		parentB := <-solver.randomParent
@@ -141,13 +127,6 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 	}
 
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parent := <-solver.randomParent
 		childGenes, quit := mutateOneGene((*parent).genes)
 		if quit {
@@ -176,13 +155,6 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 	swapStrategyResults := solver.getStrategyResultChannel("swap")
 
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parent := <-solver.randomParent
 		if len(parent.genes) == numberOfGenesPerChromosome {
 			select {
@@ -228,13 +200,6 @@ func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome 
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
 
@@ -291,13 +256,6 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
 
@@ -364,13 +322,6 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
-		select {
-		case <-solver.quit:
-			solver.quit <- true
-			return
-		default:
-		}
-
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
 
