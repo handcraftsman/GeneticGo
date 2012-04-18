@@ -16,11 +16,13 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	roundsSinceLastImprovement := 0
 	generationCount := 1
 
-	bestEver := sequenceInfo{genes: ""}
+	bestEver := sequenceInfo{genes: solver.initialParent}
+	if len(solver.initialParent) == 0 {
+		bestEver = sequenceInfo{genes: generateParent(solver.nextChromosome, geneSet, generationCount, numberOfGenesPerChromosome)}
+	}
 	bestEver.fitness = getFitness(bestEver.genes)
-	initialParent := bestEver
 
-	solver.initializePool(generationCount, numberOfGenesPerChromosome, geneSet, initialParent, getFitness)
+	solver.initializePool(generationCount, numberOfGenesPerChromosome, geneSet, bestEver, getFitness)
 	solver.initializeStrategies(numberOfGenesPerChromosome, getFitness)
 
 	defer func() {
@@ -33,6 +35,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 			default:
 			}
 		}
+		solver.initialParent = ""
 	}()
 
 	filteredDisplay := func(item *sequenceInfo) {
@@ -117,6 +120,11 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	return bestEver.genes
 }
 
+func (solver *Solver) With(initialParent string) *Solver {
+	solver.initialParent = initialParent
+	return solver
+}
+
 func (solver *Solver) GetBest(getFitness func(string) int,
 	display func(string),
 	geneSet string,
@@ -134,9 +142,13 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 			default:
 			}
 		}
+		solver.initialParent = ""
 	}()
 
-	initialParent := sequenceInfo{genes: generateParent(solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)}
+	initialParent := sequenceInfo{genes: solver.initialParent}
+	if len(solver.initialParent) == 0 {
+		initialParent = sequenceInfo{genes: generateParent(solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)}
+	}
 	initialParent.fitness = getFitness(initialParent.genes)
 
 	solver.initializePool(numberOfChromosomes, numberOfGenesPerChromosome, geneSet, initialParent, getFitness)
@@ -364,8 +376,7 @@ func (solver *Solver) initializeChannels(geneSet string, numberOfGenesPerChromos
 func (solver *Solver) initializePool(numberOfChromosomes, numberOfGenesPerChromosome int, geneSet string, initialParent sequenceInfo, getFitness func(string) int) {
 	solver.maxPoolSize = max(len(geneSet), 3*numberOfChromosomes*numberOfGenesPerChromosome)
 	solver.pool = make([]sequenceInfo, solver.maxPoolSize, solver.maxPoolSize)
-	solver.pool[0] = initialParent
-	solver.distinctPool = populatePool(solver.pool, solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, solver.childFitnessIsBetter, getFitness)
+	solver.distinctPool = populatePool(solver.pool, solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, solver.childFitnessIsBetter, getFitness, initialParent)
 
 	solver.numberOfImprovements = 1
 	solver.randomParent = make(chan *sequenceInfo, 10)

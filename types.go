@@ -33,6 +33,8 @@ type Solver struct {
 	distinctPoolLock sync.Mutex
 
 	random rand.Rand
+
+	initialParent string
 }
 
 type sequenceInfo struct {
