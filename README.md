@@ -62,7 +62,7 @@ alternatively, if you want the gene sequence to grow as necessary:
 
 - regex.go - genetically builds a regular expression. See [related blog post](http://handcraftsman.wordpress.com/2012/04/11/evolving-a-regular-expression-with-go/)
 
-	go run samples/regex/regex.go
+	go run samples/regex/builder.go
 	
 ## License		
 
