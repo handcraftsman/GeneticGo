@@ -17,26 +17,12 @@ func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
 }
 
 func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
-	swapStrategyResults := solver.getStrategyResultChannel("swap")
-
 	for {
 		select {
 		case <-solver.quit:
 			solver.quit <- true
 			return
 		default:
-		}
-
-		if random.Intn(100) != 0 {
-			select {
-			case <-solver.quit:
-				solver.quit <- true
-				return
-			case child := <-swapStrategyResults:
-				strategy.results <- child
-				continue
-			}
 		}
 
 		parentA := <-solver.randomParent
