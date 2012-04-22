@@ -68,7 +68,7 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 
 		sourceStart := random.Intn((len(parentBgenes)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 		destinationStart := random.Intn((len(parentAgenes)-1)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
-		maxLength := min(len(parentAgenes)-destinationStart, len(parentBgenes)-sourceStart)
+		maxLength := min(len(parentAgenes)-destinationStart, len(parentBgenes)-sourceStart) / numberOfGenesPerChromosome * numberOfGenesPerChromosome
 		length := (1 + random.Intn(maxLength/numberOfGenesPerChromosome-1)) * numberOfGenesPerChromosome
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, max(len(parentAgenes), len(parentBgenes))))
