@@ -6,7 +6,6 @@ import (
 )
 
 type Solver struct {
-	RandSeed                          int64
 	MaxSecondsToRunWithoutImprovement float64
 	MaxRoundsWithoutImprovement       int
 	LowerFitnessesAreBetter           bool

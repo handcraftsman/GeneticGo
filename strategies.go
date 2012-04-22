@@ -17,7 +17,7 @@ func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
 }
 
 func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	crossoverStrategyResults := solver.getStrategyResultChannel("crossover")
 
 	for {
@@ -61,7 +61,7 @@ func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int,
 }
 
 func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
@@ -110,7 +110,7 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 }
 
 func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	mutateOneGene := func(parentGenes string) (string, bool) {
 		parentIndex := random.Intn(len(parentGenes))
 
@@ -166,7 +166,7 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 }
 
 func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 	swapStrategyResults := solver.getStrategyResultChannel("swap")
 
@@ -223,7 +223,7 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 }
 
 func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
@@ -279,7 +279,7 @@ func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome 
 }
 
 func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
@@ -338,7 +338,7 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 }
 
 func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
-	random := createRandomNumberGenerator(solver.RandSeed)
+	random := createRandomNumberGenerator()
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {

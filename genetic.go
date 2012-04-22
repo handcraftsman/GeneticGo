@@ -417,13 +417,10 @@ func (solver *Solver) incrementStrategyUseCount(strategyIndex int) {
 }
 
 func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int, getFitness func(string) int, optimalFitness int) {
-	if solver.RandSeed == 0 {
-		solver.RandSeed = time.Now().UnixNano()
-	}
 	if solver.MaxRoundsWithoutImprovement == 0 {
 		solver.MaxRoundsWithoutImprovement = 2
 	}
-	solver.random = createRandomNumberGenerator(solver.RandSeed)
+	solver.random = createRandomNumberGenerator()
 	solver.ensureMaxSecondsToRunIsValid()
 	solver.createFitnessComparisonFunctions(optimalFitness)
 	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
@@ -433,7 +430,7 @@ func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int,
 func (solver *Solver) initializeChannels(geneSet string, numberOfGenesPerChromosome int) {
 	solver.quit = make(chan bool)
 	solver.nextGene = make(chan string, 1+numberOfGenesPerChromosome)
-	go generateGene(solver.nextGene, geneSet, solver.quit, solver.RandSeed)
+	go generateGene(solver.nextGene, geneSet, solver.quit)
 
 	solver.nextChromosome = make(chan string, 1)
 	go generateChromosome(solver.nextChromosome, solver.nextGene, geneSet, numberOfGenesPerChromosome, solver.quit)

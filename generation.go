@@ -28,8 +28,8 @@ func generateChromosome(nextChromosome, nextGene chan string, geneSet string, nu
 	}
 }
 
-func generateGene(nextGene chan string, geneSet string, quit chan bool, randSeed int64) {
-	localRand := createRandomNumberGenerator(randSeed)
+func generateGene(nextGene chan string, geneSet string, quit chan bool) {
+	localRand := createRandomNumberGenerator()
 	defer func() { close(nextGene) }()
 	for {
 		index := localRand.Intn(len(geneSet))
@@ -64,7 +64,6 @@ func populatePool(pool []sequenceInfo, nextChromosome chan string, geneSet strin
 			continue
 		}
 		distinctPool[itemGenes] = true
-
 		pool[i] = sequenceInfo{genes: itemGenes, fitness: getFitness(itemGenes), strategy: initialStrategy}
 
 		insertionSort(pool, compareFitnesses, i)
