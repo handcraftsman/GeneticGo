@@ -259,7 +259,8 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
 
-		if len(parent.genes) < numberOfGenesPerChromosome+1 {
+		numberOfChromosomesInParent := len(parent.genes) / numberOfGenesPerChromosome
+		if numberOfChromosomesInParent < 2 {
 			select {
 			case <-solver.quit:
 				solver.quit <- true
@@ -271,39 +272,31 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 		}
 		shiftRight := random.Intn(2) == 1
 
-		segmentStart := random.Intn((len(parentGenes)-numberOfGenesPerChromosome)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
-		segmentCount := 1 + random.Intn((len(parentGenes)-segmentStart+numberOfGenesPerChromosome)/numberOfGenesPerChromosome-1)
-
-		// +2 because first and last will be empty to leave room
-		fragments := make([]string, segmentCount+2)
-		for i := 0; i < segmentCount; i++ {
-			start := segmentStart + i*numberOfGenesPerChromosome
-			fragments[i+1] = parentGenes[start : start+numberOfGenesPerChromosome]
+		segmentStart := random.Intn(numberOfChromosomesInParent - 1)
+		if segmentStart > 0 {
+			segmentStart--
 		}
-		start := 1
-		end := segmentCount
-
-		if shiftRight {
-			start = 0
-			fragments[0] = fragments[end]
-			end--
-		} else {
-			end++
-			fragments[end] = fragments[0]
-			start++
+		segmentCount := 2
+		if numberOfChromosomesInParent > 2+segmentStart {
+			segmentCount = 2 + random.Intn(numberOfChromosomesInParent-(1+segmentStart))
 		}
+
+		segmentOffset := numberOfGenesPerChromosome * segmentStart
+		segmentLength := numberOfGenesPerChromosome * segmentCount
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
 		if segmentStart > 0 {
-			childGenes.WriteString(parentGenes[0:segmentStart])
+			childGenes.WriteString(parentGenes[0:segmentOffset])
 		}
-
-		for i := start; i <= end; i++ {
-			childGenes.WriteString(fragments[i])
+		if shiftRight {
+			childGenes.WriteString(parentGenes[segmentOffset+segmentLength-numberOfGenesPerChromosome : segmentOffset+segmentLength])
+			childGenes.WriteString(parentGenes[segmentOffset : segmentOffset+segmentLength-numberOfGenesPerChromosome])
+		} else {
+			childGenes.WriteString(parentGenes[segmentOffset+numberOfGenesPerChromosome : segmentOffset+segmentLength])
+			childGenes.WriteString(parentGenes[segmentOffset : segmentOffset+numberOfGenesPerChromosome])
 		}
-
-		if childGenes.Len() < len(parentGenes) {
-			childGenes.WriteString(parentGenes[childGenes.Len():len(parentGenes)])
+		if segmentOffset+segmentLength < len(parentGenes) {
+			childGenes.WriteString(parentGenes[segmentOffset+segmentLength : len(parentGenes)])
 		}
 
 		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
