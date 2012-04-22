@@ -16,7 +16,12 @@ then use it in your program:
 	solver.MaxSecondsToRunWithoutImprovement = 20 // you decide
 	solver.LowerFitnessesAreBetter = true // you decide
 	
-	// create a fitness function
+	// Create a fitness function:
+	//   Return a negative value if the sequence is invalid, otherwise
+	//   return a value that approaches 0 or MaxInt32 as it gets better
+	//   depending on what's best for your problem.
+	//   When hillclimbing, fitness values that are closer to the optimal
+	//   value are assumed to be better, even if higher than the optimal.
 	getFitness := func(candidate string) int {
 		return ?? // evaluate the candidate and return a fitness value
 	}
