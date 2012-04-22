@@ -17,7 +17,22 @@ func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
 }
 
 func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+	random := createRandomNumberGenerator(solver.RandSeed)
+	crossoverStrategyResults := solver.getStrategyResultChannel("crossover")
+
 	for {
+		if !solver.isHillClimbing ||
+			random.Intn(100) != 0 {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case child := <-crossoverStrategyResults:
+				strategy.results <- child
+				continue
+			}
+		}
+
 		parentA := <-solver.randomParent
 		parentAgenes := (*parentA).genes
 		parentB := <-solver.randomParent
@@ -153,8 +168,20 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+	swapStrategyResults := solver.getStrategyResultChannel("swap")
 
 	for {
+		if !solver.isHillClimbing {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case child := <-swapStrategyResults:
+				strategy.results <- child
+				continue
+			}
+		}
+
 		parent := <-solver.randomParent
 		if len(parent.genes) <= numberOfGenesPerChromosome {
 			select {

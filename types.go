@@ -34,7 +34,8 @@ type Solver struct {
 
 	random rand.Rand
 
-	initialParent string
+	initialParent  string
+	isHillClimbing bool
 }
 
 type sequenceInfo struct {

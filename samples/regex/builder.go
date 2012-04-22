@@ -31,8 +31,8 @@ func main() {
 	}
 
 	var solver = new(genetic.Solver)
-	solver.MaxSecondsToRunWithoutImprovement = 1
-	solver.MaxRoundsWithoutImprovement = 2
+	solver.MaxSecondsToRunWithoutImprovement = .5
+	solver.MaxRoundsWithoutImprovement = 3
 
 	var best = solver.GetBestUsingHillClimbing(calc, disp, geneSet, 10, 1, math.MaxInt32)
 
@@ -68,7 +68,7 @@ func getUniqueCharacters(wanted []string) string {
 
 func calculate(wanted, unwanted []string, geneSet, candidate string) int {
 	if !isValidRegex(candidate) {
-		return 0
+		return math.MinInt32
 	}
 
 	matches, misses := getMatchResults(wanted, unwanted, geneSet, candidate)

@@ -10,8 +10,8 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	geneSet string,
 	maxNumberOfChromosomes, numberOfGenesPerChromosome int,
 	bestPossibleFitness int) string {
-
-	solver.initialize(geneSet, numberOfGenesPerChromosome, getFitness)
+	solver.isHillClimbing = true
+	solver.initialize(geneSet, numberOfGenesPerChromosome, getFitness, bestPossibleFitness)
 
 	roundsSinceLastImprovement := 0
 	generationCount := 1
@@ -48,14 +48,16 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	bestEver = solver.pool[0]
 	display(bestEver.genes)
 
-	for generationCount <= maxNumberOfChromosomes &&
+	maxLength := maxNumberOfChromosomes * numberOfGenesPerChromosome
+
+	for len(bestEver.genes) <= maxLength &&
 		roundsSinceLastImprovement < solver.MaxRoundsWithoutImprovement &&
 		bestEver.fitness != bestPossibleFitness {
 
 		result := solver.getBestWithInitialParent(getFitness,
 			filteredDisplay,
 			geneSet,
-			generationCount,
+			len(bestEver.genes)/numberOfGenesPerChromosome,
 			numberOfGenesPerChromosome)
 
 		if solver.childFitnessIsBetter(result, bestEver) {
@@ -71,17 +73,24 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 			}
 		}
 
+		generationCount++
+		solver.printNewlineIfNecessary()
+
+		if len(bestEver.genes) == maxLength {
+			continue
+		}
 		newPool := make([]sequenceInfo, 0, solver.maxPoolSize)
 		distinctPool := make(map[string]bool, solver.maxPoolSize)
 
 		improved := false
 
-		generationCount++
-		solver.printNewlineIfNecessary()
 		initialStrategy := strategyInfo{name: "initial   "}
 
 		for round := 0; round < 100 && !improved; round++ {
 			for _, parent := range solver.pool {
+				if len(parent.genes) >= maxLength {
+					continue
+				}
 				childGenes := parent.genes + <-solver.nextChromosome
 				if distinctPool[childGenes] {
 					continue
@@ -129,8 +138,9 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 	display func(string),
 	geneSet string,
 	numberOfChromosomes, numberOfGenesPerChromosome int) string {
+	solver.isHillClimbing = false
 
-	solver.initialize(geneSet, numberOfGenesPerChromosome, getFitness)
+	solver.initialize(geneSet, numberOfGenesPerChromosome, getFitness, -1)
 
 	defer func() {
 		solver.quit <- true
@@ -316,22 +326,78 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 	return solver.pool[0]
 }
 
-func (solver *Solver) createFitnessComparisonFunctions() {
-	if solver.LowerFitnessesAreBetter {
-		solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
-			return child.fitness < other.fitness
-		}
+func (solver *Solver) createFitnessComparisonFunctions(bestPossibleFitness int) {
+	if !solver.isHillClimbing {
+		if solver.LowerFitnessesAreBetter {
+			solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+				return child.fitness < other.fitness
+			}
 
-		solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
-			return child.fitness <= other.fitness
+			solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+				return child.fitness <= other.fitness
+			}
+		} else {
+			solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+				return child.fitness > other.fitness
+			}
+
+			solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+				return child.fitness >= other.fitness
+			}
 		}
 	} else {
+		// checks distance from optimal
+		// assumes negative fitnesses indicate invalid sequences
+
+		checkIfEitherIsInvalid := func(childFitness, otherFitness int) (bool, bool) {
+			if childFitness < 0 {
+				if otherFitness < 0 {
+					// both invalid, keep the newer one
+					return true, true
+				} else {
+					// child is invalid but other is valid, keep it
+					return true, false
+				}
+			} else if otherFitness < 0 {
+				// child is valid but other is invalid, keep child
+				return true, true
+			}
+			return false, false
+		}
+
 		solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
-			return child.fitness > other.fitness
+			eitherIsInvalid, toReturn := checkIfEitherIsInvalid(child.fitness, other.fitness)
+			if eitherIsInvalid {
+				return toReturn
+			}
+
+			childVsOptimalLower, childVsOptimalHigher := sort(child.fitness, bestPossibleFitness)
+			otherVsOptimalLower, otherVsOptimalHigher := sort(other.fitness, bestPossibleFitness)
+			if childVsOptimalHigher-childVsOptimalLower < otherVsOptimalHigher-otherVsOptimalLower {
+				return solver.LowerFitnessesAreBetter && child.fitness >= bestPossibleFitness ||
+					!solver.LowerFitnessesAreBetter && child.fitness <= bestPossibleFitness
+			}
+			return false
 		}
 
 		solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
-			return child.fitness >= other.fitness
+			eitherIsInvalid, toReturn := checkIfEitherIsInvalid(child.fitness, other.fitness)
+			if eitherIsInvalid {
+				return toReturn
+			}
+
+			if child.fitness == bestPossibleFitness && other.fitness == bestPossibleFitness {
+				// prefer the shorter optimal solution
+				return len(child.genes) <= len(other.genes)
+			}
+
+			childVsOptimalLower, childVsOptimalHigher := sort(child.fitness, bestPossibleFitness)
+			otherVsOptimalLower, otherVsOptimalHigher := sort(other.fitness, bestPossibleFitness)
+			if childVsOptimalHigher-childVsOptimalLower <= otherVsOptimalHigher-otherVsOptimalLower {
+				return solver.LowerFitnessesAreBetter && child.fitness >= bestPossibleFitness ||
+					!solver.LowerFitnessesAreBetter && child.fitness <= bestPossibleFitness
+			}
+			return false
 		}
 	}
 }
@@ -350,7 +416,7 @@ func (solver *Solver) incrementStrategyUseCount(strategyIndex int) {
 	}
 }
 
-func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int, getFitness func(string) int, optimalFitness int) {
 	if solver.RandSeed == 0 {
 		solver.RandSeed = time.Now().UnixNano()
 	}
@@ -359,7 +425,7 @@ func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int,
 	}
 	solver.random = createRandomNumberGenerator(solver.RandSeed)
 	solver.ensureMaxSecondsToRunIsValid()
-	solver.createFitnessComparisonFunctions()
+	solver.createFitnessComparisonFunctions(optimalFitness)
 	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
 	solver.needNewlineBeforeDisplay = false
 }
