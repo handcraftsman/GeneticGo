@@ -318,7 +318,12 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
 
-		if len(parentGenes) == 1 {
+		swapLength := numberOfGenesPerChromosome
+		if random.Intn(2) == 0 {
+			swapLength = 1
+		}
+
+		if len(parentGenes) == swapLength {
 			select {
 			case <-solver.quit:
 				solver.quit <- true
@@ -329,11 +334,11 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 			}
 		}
 
-		parentIndexA := random.Intn(len(parentGenes))
-		parentIndexB := random.Intn(len(parentGenes))
-
-		for tries := 0; parentIndexA == parentIndexB && tries < 10; parentIndexB = random.Intn(len(parentGenes)) {
-			tries++
+		parentIndexA := random.Intn(len(parentGenes)/swapLength) * swapLength
+		parentIndexB := random.Intn(len(parentGenes)/swapLength) * swapLength
+		if parentIndexA == parentIndexB {
+			parentIndexB += swapLength
+			parentIndexB %= len(parentGenes)
 		}
 
 		parentIndexA, parentIndexB = sort(parentIndexA, parentIndexB)
@@ -343,16 +348,16 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 			childGenes.WriteString(parentGenes[:parentIndexA])
 		}
 
-		childGenes.WriteString(parentGenes[parentIndexB : parentIndexB+1])
+		childGenes.WriteString(parentGenes[parentIndexB : parentIndexB+swapLength])
 
-		if parentIndexB-parentIndexA > 1 {
-			childGenes.WriteString(parentGenes[parentIndexA+1 : parentIndexB])
+		if parentIndexB-parentIndexA > swapLength {
+			childGenes.WriteString(parentGenes[parentIndexA+swapLength : parentIndexB])
 		}
 
-		childGenes.WriteString(parentGenes[parentIndexA : parentIndexA+1])
+		childGenes.WriteString(parentGenes[parentIndexA : parentIndexA+swapLength])
 
-		if parentIndexB+1 < len(parentGenes) {
-			childGenes.WriteString(parentGenes[parentIndexB+1:])
+		if parentIndexB+swapLength < len(parentGenes) {
+			childGenes.WriteString(parentGenes[parentIndexB+swapLength:])
 		}
 
 		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
