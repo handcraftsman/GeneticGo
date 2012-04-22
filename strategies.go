@@ -152,16 +152,16 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 
 func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator(solver.RandSeed)
-	swapStrategyResults := solver.getStrategyResultChannel("swap")
+	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
 
 	for {
 		parent := <-solver.randomParent
-		if len(parent.genes) == numberOfGenesPerChromosome {
+		if len(parent.genes) <= numberOfGenesPerChromosome {
 			select {
 			case <-solver.quit:
 				solver.quit <- true
 				return
-			case child := <-swapStrategyResults:
+			case child := <-mutateStrategyResults:
 				strategy.results <- child
 				continue
 			}
@@ -170,8 +170,8 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 		// prefer removing from the end
 		parentGenes := (*parent).genes
 		index := len(parentGenes) - numberOfGenesPerChromosome
-		for ; index >= 0; index -= numberOfGenesPerChromosome {
-			if random.Intn(10) == 0 {
+		for ; index > 0; index -= numberOfGenesPerChromosome {
+			if random.Intn(len(parentGenes)/numberOfGenesPerChromosome) == 0 {
 				break
 			}
 		}
