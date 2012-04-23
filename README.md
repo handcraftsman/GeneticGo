@@ -68,6 +68,13 @@ alternatively, if you want the gene sequence to grow as necessary:
 - regex.go - genetically builds a regular expression. See [related blog post](http://handcraftsman.wordpress.com/2012/04/11/evolving-a-regular-expression-with-go/)
 
 	go run samples/regex/builder.go
+
+- unbounded knapsack problem solver. See [related blog post](http://handcraftsman.wordpress.com/2012/04/23/unbounded-knapsack-problem-solver/)
+
+	go run samples/ukp/rosetta/rosetta.go
+
+	go run samples/ukp/standard/standard.go samples/ukp/data/exnsd16.ukp
+		prerequisite: go get "github.com/handcraftsman/File"
 	
 ## License		
 
