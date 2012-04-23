@@ -22,7 +22,7 @@ func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int,
 
 	for {
 		if !solver.isHillClimbing ||
-			random.Intn(100) != 0 {
+			numberOfGenesPerChromosome > 1 && random.Intn(100) != 0 {
 			select {
 			case <-solver.quit:
 				solver.quit <- true
