@@ -38,15 +38,23 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		solver.initialParent = ""
 	}()
 
-	filteredDisplay := func(item *sequenceInfo) {
-		if solver.childFitnessIsBetter(*item, bestEver) {
-			display((*item).genes)
-			bestEver = *item
+	filteredDisplay := func(candidate *sequenceInfo) {
+		if solver.childFitnessIsBetter(*candidate, bestEver) {
+			solver.printNewlineIfNecessary()
+			if solver.PrintStrategyUsage {
+				fmt.Print((*candidate).strategy.name)
+			}
+			display((*candidate).genes)
+			bestEver = *candidate
+			roundsSinceLastImprovement = 0
 		}
 	}
 
-	bestEver = solver.pool[0]
-	display(bestEver.genes)
+	bestEver = solver.pool[1]
+	{
+		tempBest := solver.pool[0]
+		filteredDisplay(&tempBest)
+	}
 
 	maxLength := maxNumberOfChromosomes * numberOfGenesPerChromosome
 
@@ -86,8 +94,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		distinctPool := make(map[string]bool, solver.maxPoolSize)
 
 		improved := false
-
-		initialStrategy := strategyInfo{name: "initial   "}
+		climbStrategy := strategyInfo{name: "climb     "}
 
 		for round := 0; round < 100 && !improved; round++ {
 			for _, parent := range solver.pool {
@@ -101,7 +108,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 				distinctPool[childGenes] = true
 
 				fitness := getFitness(childGenes)
-				child := sequenceInfo{genes: childGenes, fitness: fitness, strategy: initialStrategy}
+				child := sequenceInfo{genes: childGenes, fitness: fitness, strategy: climbStrategy}
 				if len(newPool) < solver.maxPoolSize {
 					newPool = append(newPool, child)
 				} else {
@@ -110,14 +117,8 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 				insertionSort(newPool, solver.childFitnessIsSameOrBetter, len(newPool)-1)
 
 				if solver.childFitnessIsBetter(child, bestEver) {
-					roundsSinceLastImprovement = 0
-					solver.printNewlineIfNecessary()
-					if solver.PrintStrategyUsage {
-						fmt.Print("climb     ")
-					}
-					display(child.genes)
-					bestEver = child
 					improved = true
+					filteredDisplay(&child)
 				}
 			}
 		}
@@ -168,9 +169,13 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 	solver.initializeStrategies(numberOfGenesPerChromosome, getFitness)
 
 	best := *new(sequenceInfo)
-	displayCaptureBest := func(sequence *sequenceInfo) {
-		display((*sequence).genes)
-		best = *sequence
+	displayCaptureBest := func(candidate *sequenceInfo) {
+		solver.printNewlineIfNecessary()
+		if solver.PrintStrategyUsage {
+			fmt.Print((*candidate).strategy.name)
+		}
+		display((*candidate).genes)
+		best = *candidate
 	}
 
 	solver.getBestWithInitialParent(getFitness,
@@ -250,10 +255,7 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 		addToChildren(child)
 
 		if solver.childFitnessIsBetter(*child, solver.pool[0]) {
-			solver.printNewlineIfNecessary()
-			if solver.PrintStrategyUsage {
-				fmt.Print((*child).strategy.name)
-			}
+
 			display(child)
 
 			if solver.pool[0].genes == (*(*child).parent).genes {
