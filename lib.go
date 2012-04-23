@@ -2,6 +2,7 @@ package genetic
 
 import (
 	"math/rand"
+	s "sort"
 	"time"
 )
 
@@ -13,12 +14,14 @@ func insertionSort(items []sequenceInfo, compare func(sequenceInfo, sequenceInfo
 	if index < 1 || index > len(items) {
 		return
 	}
-	for i := index; i > 0; i-- {
-		if compare(items[i], items[i-1]) {
-			items[i], items[i-1] = items[i-1], items[i]
-			continue
+
+	if index > 0 {
+		location := s.Search(index, func(i int) bool { return compare(items[index], items[i]) })
+		temp := items[index]
+		for i := index; i > location; i-- {
+			items[i] = items[i-1]
 		}
-		break
+		items[location] = temp
 	}
 }
 
