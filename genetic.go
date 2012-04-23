@@ -79,6 +79,9 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		if len(bestEver.genes) == maxLength {
 			continue
 		}
+
+		solver.maxPoolSize = getMaxPoolSize(len(bestEver.genes)/numberOfGenesPerChromosome+1, numberOfGenesPerChromosome, len(geneSet))
+
 		newPool := make([]sequenceInfo, 0, solver.maxPoolSize)
 		distinctPool := make(map[string]bool, solver.maxPoolSize)
 
@@ -437,7 +440,7 @@ func (solver *Solver) initializeChannels(geneSet string, numberOfGenesPerChromos
 }
 
 func (solver *Solver) initializePool(numberOfChromosomes, numberOfGenesPerChromosome int, geneSet string, initialParent sequenceInfo, getFitness func(string) int) {
-	solver.maxPoolSize = max(len(geneSet), 3*numberOfChromosomes*numberOfGenesPerChromosome)
+	solver.maxPoolSize = getMaxPoolSize(numberOfChromosomes, numberOfGenesPerChromosome, len(geneSet))
 	solver.pool = make([]sequenceInfo, solver.maxPoolSize, solver.maxPoolSize)
 	solver.distinctPool = populatePool(solver.pool, solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, solver.childFitnessIsBetter, getFitness, initialParent)
 
@@ -453,10 +456,20 @@ func (solver *Solver) initializePool(numberOfChromosomes, numberOfGenesPerChromo
 				useBestParent := solver.random.Intn(solver.numberOfImprovements) <= solver.successParentIsBestParentCount
 				if useBestParent {
 					parent := solver.pool[0]
-					solver.randomParent <- &parent
+					select {
+					case <-solver.quit:
+						solver.quit <- true
+						return
+					case solver.randomParent <- &parent:
+					}
 				}
 				parent := solver.pool[solver.random.Intn(len(solver.pool))]
-				solver.randomParent <- &parent
+				select {
+				case <-solver.quit:
+					solver.quit <- true
+					return
+				case solver.randomParent <- &parent:
+				}
 			}
 		}
 	}()
@@ -514,6 +527,17 @@ func (solver *Solver) shouldAddChild(child *sequenceInfo, getFitness func(string
 	}
 
 	return true
+}
+
+func getMaxPoolSize(numberOfChromosomes, numberOfGenesPerChromosome, numberOfGenes int) int {
+	max := numberOfGenes
+	for i := 1; i < numberOfChromosomes*numberOfGenesPerChromosome && max < 500; i++ {
+		max *= numberOfGenes
+	}
+	if max > 500 {
+		return 500
+	}
+	return max
 }
 
 func populateDistinctPoolFitnessesMap(pool []sequenceInfo) map[int]bool {
