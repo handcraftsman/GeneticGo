@@ -35,6 +35,7 @@ type Solver struct {
 
 	initialParent  string
 	isHillClimbing bool
+	geneSet        string
 }
 
 type sequenceInfo struct {
@@ -50,4 +51,8 @@ type strategyInfo struct {
 	successCount int
 	results      chan *sequenceInfo
 	index        int
+}
+
+type randomSource interface {
+	Intn(exclusiveMax int) int
 }

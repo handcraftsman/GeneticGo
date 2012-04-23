@@ -11,6 +11,8 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	maxNumberOfChromosomes, numberOfGenesPerChromosome int,
 	bestPossibleFitness int) string {
 	solver.isHillClimbing = true
+	solver.geneSet = geneSet
+
 	solver.initialize(geneSet, numberOfGenesPerChromosome, getFitness, bestPossibleFitness)
 
 	roundsSinceLastImprovement := 0
@@ -143,6 +145,7 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 	geneSet string,
 	numberOfChromosomes, numberOfGenesPerChromosome int) string {
 	solver.isHillClimbing = false
+	solver.geneSet = geneSet
 
 	solver.initialize(geneSet, numberOfGenesPerChromosome, getFitness, -1)
 

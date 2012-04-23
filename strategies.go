@@ -109,6 +109,60 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 	}
 }
 
+func (solver *Solver) flutter(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+	random := createRandomNumberGenerator()
+	for {
+		parent := <-solver.randomParent
+		parentGenes := (*parent).genes
+		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, &random)
+
+		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
+
+		numberOfGenesToFlutter := 1 + random.Intn(numberOfGenesPerChromosome)
+		start := chromosomeIndex
+		if numberOfGenesToFlutter < numberOfGenesPerChromosome {
+			start += random.Intn(numberOfGenesPerChromosome - numberOfGenesToFlutter + 1)
+		}
+
+		if start > 0 {
+			childGenes.WriteString(parentGenes[:start])
+		}
+		anyChanged := false
+		for i := 0; i < numberOfGenesToFlutter; i++ {
+			modifier := random.Intn(5) - 2
+			if modifier == 0 {
+				if anyChanged {
+					childGenes.WriteString(parentGenes[start+i : start+i+1])
+					continue
+				}
+				modifier++
+				anyChanged = true
+			}
+			geneSetIndex := strings.Index(solver.geneSet, parentGenes[start+i:start+i+1])
+			geneSetIndex += modifier
+			if geneSetIndex < 0 {
+				geneSetIndex += len(solver.geneSet)
+			} else if geneSetIndex >= len(solver.geneSet) {
+				geneSetIndex -= len(solver.geneSet)
+			}
+			childGenes.WriteString(solver.geneSet[geneSetIndex : geneSetIndex+1])
+		}
+
+		if start+numberOfGenesToFlutter < len(parentGenes) {
+			childGenes.WriteString(parentGenes[start+numberOfGenesToFlutter:])
+		}
+
+		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
+
+		select {
+		case strategy.results <- &child:
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		}
+	}
+}
+
 func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator()
 	mutateOneGene := func(parentGenes string) (string, bool) {
@@ -165,6 +219,38 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 	}
 }
 
+func (solver *Solver) rand(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+	for {
+		parent := <-solver.randomParent
+		parentLen := len((*parent).genes)
+
+		childGenes := bytes.NewBuffer(make([]byte, 0, parentLen))
+		length := 0
+		for length < parentLen {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case chromosome := <-solver.nextChromosome:
+				if len(chromosome) != numberOfGenesPerChromosome {
+					return
+				}
+				childGenes.WriteString(chromosome)
+				length += len(chromosome)
+			}
+		}
+		child := sequenceInfo{genes: childGenes.String(), strategy: strategy}
+		child.parent = &child
+
+		select {
+		case strategy.results <- &child:
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		}
+	}
+}
+
 func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
 	random := createRandomNumberGenerator()
 	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
@@ -196,12 +282,7 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 
 		// prefer removing from the end
 		parentGenes := (*parent).genes
-		index := len(parentGenes) - numberOfGenesPerChromosome
-		for ; index > 0; index -= numberOfGenesPerChromosome {
-			if random.Intn(len(parentGenes)/numberOfGenesPerChromosome) == 0 {
-				break
-			}
-		}
+		index := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, &random)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
 		if index > 0 {
@@ -209,6 +290,64 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 		}
 		if index < len(parentGenes)-numberOfGenesPerChromosome {
 			childGenes.WriteString(parentGenes[index+numberOfGenesPerChromosome:])
+		}
+
+		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
+
+		select {
+		case strategy.results <- &child:
+		case <-solver.quit:
+			solver.quit <- true
+			return
+		}
+	}
+}
+
+func (solver *Solver) replace(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+	random := createRandomNumberGenerator()
+	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+
+	for {
+		parent := <-solver.randomParent
+		if len(parent.genes) == numberOfGenesPerChromosome {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case child := <-mutateStrategyResults:
+				strategy.results <- child
+				continue
+			}
+		}
+
+		parentGenes := (*parent).genes
+		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, &random)
+
+		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
+
+		numberOfGenesToMutate := 1 + random.Intn(numberOfGenesPerChromosome)
+		start := 0
+		if numberOfGenesToMutate < numberOfGenesPerChromosome {
+			start = random.Intn(numberOfGenesPerChromosome - numberOfGenesToMutate + 1)
+		}
+
+		childGenes.WriteString(parentGenes[:chromosomeIndex+start])
+
+		for i := 0; i < numberOfGenesToMutate; i++ {
+			select {
+			case <-solver.quit:
+				solver.quit <- true
+				return
+			case gene := <-solver.nextGene:
+				if len(gene) != 1 {
+					return
+				}
+				childGenes.WriteString(gene)
+			}
+		}
+
+		if chromosomeIndex+start+numberOfGenesToMutate < len(parentGenes) {
+			childGenes.WriteString(parentGenes[chromosomeIndex+start+numberOfGenesToMutate:])
 		}
 
 		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
@@ -406,11 +545,20 @@ func (solver *Solver) initializeStrategies(numberOfGenesPerChromosome int, getFi
 		{name: "crossover ", start: func(strategyIndex int) {
 			solver.crossover(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
 		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		{name: "flutter   ", start: func(strategyIndex int) {
+			solver.flutter(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
 		{name: "mutate    ", start: func(strategyIndex int) {
 			solver.mutate(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
 		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		{name: "random    ", start: func(strategyIndex int) {
+			solver.rand(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
 		{name: "remove    ", start: func(strategyIndex int) {
 			solver.remove(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		{name: "replace   ", start: func(strategyIndex int) {
+			solver.replace(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
 		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
 		{name: "reverse   ", start: func(strategyIndex int) {
 			solver.reverse(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
@@ -439,4 +587,13 @@ func (solver *Solver) inPool(childGenes string) bool {
 	solver.distinctPool[childGenes] = true
 	solver.distinctPoolLock.Unlock()
 	return false
+}
+
+func chooseWeightedChromosome(lenParentGenes, numberOfGenesPerChromosome int, random randomSource) int {
+	// prefer chromosomes near the end
+	numberOfChromosomes := lenParentGenes / numberOfGenesPerChromosome
+	index := lenParentGenes - numberOfGenesPerChromosome
+	for ; index > 0 && random.Intn(numberOfChromosomes) != 0; numberOfChromosomes, index = numberOfChromosomes-1, numberOfGenesPerChromosome-1 {
+	}
+	return index
 }
