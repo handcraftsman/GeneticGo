@@ -61,9 +61,9 @@ alternatively, if you want the gene sequence to grow as necessary:
 
 - tsp.go - travelling salesperson problem solver. See [related blog post](http://handcraftsman.wordpress.com/2012/04/02/go-implementation-of-a-travelling-salesperson-problem-solver/)
 
-	prerequisite: go get "github.com/handcraftsman/File"
-
 	go run samples/tsp/tsp.go samples/tsp/data/eil51.tsp
+
+	prerequisite: go get "github.com/handcraftsman/File"
 
 - regex.go - genetically builds a regular expression. See [related blog post](http://handcraftsman.wordpress.com/2012/04/11/evolving-a-regular-expression-with-go/)
 
@@ -74,6 +74,7 @@ alternatively, if you want the gene sequence to grow as necessary:
 	go run samples/ukp/rosetta/rosetta.go
 
 	go run samples/ukp/standard/standard.go samples/ukp/data/exnsd16.ukp
+	
 	prerequisite: go get "github.com/handcraftsman/File"
 	
 ## License		
