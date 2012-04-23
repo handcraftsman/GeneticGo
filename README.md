@@ -63,7 +63,7 @@ alternatively, if you want the gene sequence to grow as necessary:
 
 	prerequisite: go get "github.com/handcraftsman/File"
 
-	go run samples/tsp/tsp.go samples/data/tsp/eil51.tsp
+	go run samples/tsp/tsp.go samples/tsp/data/eil51.tsp
 
 - regex.go - genetically builds a regular expression. See [related blog post](http://handcraftsman.wordpress.com/2012/04/11/evolving-a-regular-expression-with-go/)
 
