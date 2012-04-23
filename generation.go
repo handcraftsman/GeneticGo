@@ -15,7 +15,11 @@ func generateChromosome(nextChromosome, nextGene chan string, geneSet string, nu
 				quit <- true
 				return
 			default:
-				c.WriteString(<-nextGene)
+				gene := <-nextGene
+				if len(gene) == 0 {
+					return
+				}
+				c.WriteString(gene)
 			}
 		}
 		select {
