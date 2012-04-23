@@ -74,7 +74,7 @@ alternatively, if you want the gene sequence to grow as necessary:
 	go run samples/ukp/rosetta/rosetta.go
 
 	go run samples/ukp/standard/standard.go samples/ukp/data/exnsd16.ukp
-		prerequisite: go get "github.com/handcraftsman/File"
+	prerequisite: go get "github.com/handcraftsman/File"
 	
 ## License		
 
