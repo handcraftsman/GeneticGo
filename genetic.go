@@ -62,7 +62,8 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 
 	for len(bestEver.genes) <= maxLength &&
 		roundsSinceLastImprovement < solver.MaxRoundsWithoutImprovement &&
-		bestEver.fitness != bestPossibleFitness {
+		bestEver.fitness != bestPossibleFitness &&
+		len(solver.pool) > 0 {
 
 		result := solver.getBestWithInitialParent(getFitness,
 			filteredDisplay,
