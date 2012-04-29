@@ -76,6 +76,12 @@ alternatively, if you want the gene sequence to grow as necessary:
 	go run samples/ukp/standard/standard.go samples/ukp/data/exnsd16.ukp
 	
 	prerequisite: go get "github.com/handcraftsman/File"
+
+- lawnmower problem solver. See  [related blog post](http://handcraftsman.wordpress.com/2012/04/29/lawnmower-problem-solver/)
+
+    go run samples/lawnmower/*.go
+	
+	prerequisite: go get "github.com/handcraftsman/Interpreter"
 	
 ## License		
 
