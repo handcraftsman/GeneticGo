@@ -52,4 +52,5 @@
 // 	
 // 	var result = solver.GetBestUsingHillClimbing(getFitness, display, geneSet, maxNumberOfChromosomes, numberOfGenesInAChromosome, bestPossibleFitness)
 //
+// see the samples directory for specific examples
 package genetic
