@@ -42,7 +42,7 @@ func main() {
 }
 
 func evaluate(candidate string, startX, startY int) (*field, *program) {
-	field := Newfield(fieldWidth, fieldHeight)
+	field := NewField(fieldWidth, fieldHeight)
 	mower := NewMower(startX, startY, south)
 	program := parseProgram(candidate, field, mower)
 	interpreter := NewInterpreter(program).

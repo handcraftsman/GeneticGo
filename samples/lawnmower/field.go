@@ -11,7 +11,7 @@ type field struct {
 	numberOfSquaresMowed int
 }
 
-func Newfield(fieldWidth, fieldHeight int) *field {
+func NewField(fieldWidth, fieldHeight int) *field {
 	field := field{
 		squares: make([]int, fieldHeight*fieldWidth, fieldHeight*fieldWidth),
 		width:   fieldWidth,
