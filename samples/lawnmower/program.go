@@ -16,7 +16,7 @@ func NewProgram() *program {
 	return &p
 }
 
-func (p *program) GetBlock(blockName string) []Instruction {
+func (p *program) GetBlock(blockName string, args CallArgs) []Instruction {
 	block := p.blocks[blockName]
 	if block != nil {
 		return *block

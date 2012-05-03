@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	genetic "github.com/handcraftsman/GeneticGo"
+	//genetic "github.com/handcraftsman/GeneticGo"
+	"../.."
 	. "github.com/handcraftsman/Interpreter"
 	"time"
 )
@@ -52,7 +53,7 @@ func evaluate(candidate string, startX, startY int) (*field, *program) {
 		return block
 	}).
 		WithHaltIf(func() bool { return field.allMowed() || mower.isOutOfFuel() })
-	interpreter.Run("main", 0)
+	interpreter.Run("main", nil, 0)
 	return field, program
 }
 
