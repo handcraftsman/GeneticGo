@@ -25,9 +25,9 @@ func parseProgram(genes string, f *field, m *mower) *program {
 			case 3:
 				builders <- createBlockBuilder()
 			case 4:
-				builders <- createCallBuilder(instructionCodes)
-				//			case 5:
-				//				builders <- createCallBuilder(instructionCodes, 1)
+				builders <- createCallBuilder(instructionCodes, 0)
+			case 5:
+				builders <- createCallBuilder(instructionCodes, 1)
 			default:
 				panic(fmt.Sprint("No builder defined for instructionCode '", instructionCode, "' from gene '", genes[offset:offset+1], "'"))
 			}
@@ -54,6 +54,16 @@ func parseProgram(genes string, f *field, m *mower) *program {
 			continue
 		}
 
+		if builder.isCall && blockId >= 0 {
+			if builder.id == blockId {
+				break // calling self
+			}
+			otherInstructions := p.GetBlock(createBlockName(builder.id), nil)
+			if otherBlockCallsThisBlock(&otherInstructions, blockId) {
+				break // would cause method loop
+			}
+		}
+
 		instructions = append(instructions, builder.create(f, m))
 	}
 
@@ -68,7 +78,6 @@ func createBlockName(id int) string {
 	return fmt.Sprint("block", id)
 }
 
-// use this for Koza rules implementation
 func otherBlockCallsThisBlock(blockInstructions *[]Instruction, thisBlockId int) bool {
 	expectedName := createBlockName(thisBlockId)
 	for _, instr := range *blockInstructions {
@@ -118,9 +127,7 @@ func createBlockBuilder() builder {
 	return builder{startNewBlock: true}
 }
 
-//func createCallBuilder(instructionCodes chan int, blockId int) builder {
-func createCallBuilder(instructionCodes chan int) builder {
-	blockId := <-instructionCodes
+func createCallBuilder(instructionCodes chan int, blockId int) builder {
 	return builder{
 		create: func(f *field, m *mower) Instruction { return NewCall(f, m, createBlockName(blockId)) },
 		isCall: true,

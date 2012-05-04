@@ -8,7 +8,7 @@ import (
 )
 
 const geneSet = "01234567"
-const numberOfInstructions = 5
+const numberOfInstructions = 6
 const fieldWidth = 8
 const fieldHeight = 8
 const maxMowerActions = 2 * fieldWidth * fieldHeight
