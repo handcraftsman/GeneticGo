@@ -29,6 +29,8 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 
 	defer func() {
 		solver.quit <- true
+		solver.quit <- true
+		solver.quit <- true
 		<-solver.nextChromosome
 		<-solver.nextGene
 		for _, strategy := range solver.strategies {
@@ -272,8 +274,10 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 				solver.needNewlineBeforeDisplay = true
 			}
 
+			solver.poolLock.Lock()
 			solver.pool[len(solver.pool)-1] = *child
 			insertionSort(solver.pool, solver.childFitnessIsSameOrBetter, len(solver.pool)-1)
+			solver.poolLock.Unlock()
 
 			if !distinctChildren[(*(*child).parent).genes] {
 				addToChildren(child.parent)
@@ -286,12 +290,17 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 	}
 
 	updateIfIsImprovement := func(child *sequenceInfo) {
-		if solver.shouldAddChild(child, getFitness) {
-			if updatePools(child) {
-				solver.incrementStrategyUseCount((*child).strategy.index)
-				start = time.Now()
-			}
+		if solver.inPool((*child).genes) {
+			return
 		}
+		go func() {
+			if solver.shouldAddChild(child, getFitness) {
+				if updatePools(child) {
+					solver.incrementStrategyUseCount((*child).strategy.index)
+					start = time.Now()
+				}
+			}
+		}()
 	}
 
 	timeout := make(chan bool, 1)
@@ -302,6 +311,8 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 			case timeout <- true:
 			case <-quit:
 				quit <- true
+				close(timeout)
+				return
 			}
 		}
 		close(timeout)
@@ -419,10 +430,12 @@ func (solver *Solver) ensureMaxSecondsToRunIsValid() {
 }
 
 func (solver *Solver) incrementStrategyUseCount(strategyIndex int) {
+	solver.strategySuccessLock.Lock()
 	solver.strategies[strategyIndex].successCount++
 	if solver.strategies[strategyIndex].successCount > solver.maxStrategySuccess {
 		solver.maxStrategySuccess = solver.strategies[strategyIndex].successCount
 	}
+	solver.strategySuccessLock.Unlock()
 }
 
 func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int, getFitness func(string) int, optimalFitness int) {
@@ -513,21 +526,24 @@ func (solver *Solver) printStrategyUsage() {
 }
 
 func (solver *Solver) shouldAddChild(child *sequenceInfo, getFitness func(string) int) bool {
-	if solver.inPool((*child).genes) {
+	(*child).fitness = getFitness((*child).genes)
+	if len(solver.pool) == 0 {
 		return false
 	}
-
-	(*child).fitness = getFitness((*child).genes)
 	if !solver.childFitnessIsSameOrBetter(*child, solver.pool[len(solver.pool)-1]) {
 		return false
 	}
 
 	if (*child).fitness == solver.pool[len(solver.pool)-1].fitness {
 		if len(solver.pool) < solver.maxPoolSize {
+			solver.poolLock.Lock()
 			solver.pool = append(solver.pool, *child)
+			solver.poolLock.Unlock()
 		} else {
+			solver.poolLock.Lock()
 			solver.pool[len(solver.pool)-1] = *child
 			insertionSort(solver.pool, solver.childFitnessIsSameOrBetter, len(solver.pool)-1)
+			solver.poolLock.Unlock()
 		}
 
 		return false

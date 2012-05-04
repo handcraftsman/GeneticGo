@@ -22,6 +22,7 @@ type Solver struct {
 	maxStrategySuccess             int
 	numberOfImprovements           int
 	successParentIsBestParentCount int
+	strategySuccessLock            sync.Mutex
 
 	needNewlineBeforeDisplay bool
 
