@@ -497,12 +497,13 @@ func (solver *Solver) printStrategyUsage() {
 		return
 	}
 
-	fmt.Println("\nstrategy usage:")
+	fmt.Println("\nsuccessful strategy usage:")
 	for _, strategy := range solver.strategies {
+		successCount := strategy.successCount - initialStrategySuccess
 		fmt.Println(
 			strategy.name, "\t",
-			strategy.successCount, "\t",
-			100.0*strategy.successCount/solver.numberOfImprovements, "%")
+			successCount, "\t",
+			100*successCount/solver.numberOfImprovements, "%")
 	}
 	fmt.Println()
 

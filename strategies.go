@@ -537,40 +537,42 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 	}
 }
 
+const initialStrategySuccess = 3
+
 func (solver *Solver) initializeStrategies(numberOfGenesPerChromosome int, getFitness func(string) int) {
 	solver.strategies = []strategyInfo{
 		{name: "add       ", start: func(strategyIndex int) {
 			solver.add(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "crossover ", start: func(strategyIndex int) {
 			solver.crossover(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "flutter   ", start: func(strategyIndex int) {
 			solver.flutter(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "mutate    ", start: func(strategyIndex int) {
 			solver.mutate(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "random    ", start: func(strategyIndex int) {
 			solver.rand(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "remove    ", start: func(strategyIndex int) {
 			solver.remove(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "replace   ", start: func(strategyIndex int) {
 			solver.replace(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "reverse   ", start: func(strategyIndex int) {
 			solver.reverse(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "shift     ", start: func(strategyIndex int) {
 			solver.shift(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "swap      ", start: func(strategyIndex int) {
 			solver.swap(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
-		}, successCount: 0, results: make(chan *sequenceInfo, 1)},
+		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 	}
-	solver.maxStrategySuccess = 1
+	solver.maxStrategySuccess = initialStrategySuccess
 
 	for i, _ := range solver.strategies {
 		solver.strategies[i].index = i
