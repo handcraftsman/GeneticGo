@@ -34,6 +34,10 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 				return
 			case candidate := <-filteredDisplay:
 				if solver.childFitnessIsBetter(*candidate, bestEver) {
+					if solver.PrintDiagnosticInfo {
+						fmt.Print("+")
+						solver.needNewlineBeforeDisplay = true
+					}
 					solver.printNewlineIfNecessary()
 					if solver.PrintStrategyUsage {
 						fmt.Print((*candidate).strategy.name)
@@ -131,7 +135,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 			}
 		}
 
-		solver.pool.addAll(newPool)
+		solver.pool.truncateAndAddAll(newPool)
 	}
 
 	solver.printNewlineIfNecessary()
@@ -183,6 +187,10 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 				solver.quit <- true
 				return
 			case candidate := <-displayCaptureBest:
+				if solver.PrintDiagnosticInfo {
+					fmt.Print("+")
+					solver.needNewlineBeforeDisplay = true
+				}
 				solver.printNewlineIfNecessary()
 				if solver.PrintStrategyUsage {
 					fmt.Print((*candidate).strategy.name)
@@ -213,65 +221,38 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 
 	start := time.Now()
 
-	children := make([]sequenceInfo, 1, solver.maxPoolSize)
-	children[0] = solver.pool.getBest()
-
-	distinctChildren := make(map[string]bool, solver.maxPoolSize)
-	distinctChildrenFitnesses := populateDistinctPoolFitnessesMap(solver.pool)
-
 	quit := make(chan bool)
 
+	children := NewPool(solver.maxPoolSize,
+		quit,
+		solver.PrintDiagnosticInfo,
+		solver.childFitnessIsSameOrBetter,
+		func() { solver.needNewlineBeforeDisplay = true },
+		solver.pool.addNewItem)
+	poolBest := solver.pool.getBest()
+	children.addNewItem <- &poolBest
+
 	promoteChildrenIfFull := func() {
-		if len(children) >= 20 || len(children) >= 10 && time.Since(start).Seconds() > solver.MaxSecondsToRunWithoutImprovement/2 {
+		if children.len() >= 20 || children.len() >= 10 && time.Since(start).Seconds() > solver.MaxSecondsToRunWithoutImprovement/2 {
 			if solver.PrintDiagnosticInfo {
 				fmt.Print(">")
 				solver.needNewlineBeforeDisplay = true
 			}
 
-			solver.pool.addAll(children)
+			solver.pool.truncateAndAddAll(children.items)
 
 			bestParent := solver.pool.getBest()
-			children = make([]sequenceInfo, 1, solver.maxPoolSize)
-			children[0] = bestParent
-
-			distinctChildren = make(map[string]bool, len(children))
-			distinctChildren[bestParent.genes] = true
-
-			distinctChildrenFitnesses = make(map[int]bool, solver.maxPoolSize)
-			distinctChildrenFitnesses[bestParent.fitness] = true
+			children.reset()
+			children.addItem(bestParent)
 		}
 	}
 
 	updatePools := func(child *sequenceInfo) bool {
-		addToChildren := func(item *sequenceInfo) {
-			if len(children) < solver.maxPoolSize &&
-				(len(distinctChildrenFitnesses) < 4 ||
-					(*item).fitness == children[len(children)-1].fitness) {
-
-				children = append(children, *item)
-
-				if solver.PrintDiagnosticInfo {
-					fmt.Print(".")
-					solver.needNewlineBeforeDisplay = true
-				}
-				insertionSort(children, solver.childFitnessIsSameOrBetter, len(children)-1)
-			} else if solver.childFitnessIsSameOrBetter(*item, children[len(children)-1]) {
-				children[len(children)-1] = *item
-				insertionSort(children, solver.childFitnessIsSameOrBetter, len(children)-1)
-			}
-
-			distinctChildren[(*item).genes] = true
-			distinctChildrenFitnesses[(*item).fitness] = true
-		}
-		addToChildren(child)
+		children.addItem(*child)
 
 		poolBest := solver.pool.getBest()
 		if solver.childFitnessIsBetter(*child, poolBest) {
-			/*
-				go func() {
-					display <- child
-				}()
-			*/
+
 			if poolBest.genes == (*(*child).parent).genes {
 				solver.strategySuccessLock.Lock()
 				solver.successParentIsBestParentCount++
@@ -281,16 +262,9 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 			solver.numberOfImprovements++
 			solver.strategySuccessLock.Unlock()
 
-			if solver.PrintDiagnosticInfo {
-				fmt.Print("+")
-				solver.needNewlineBeforeDisplay = true
-			}
-
 			solver.pool.addItem(*child)
 
-			if !distinctChildren[(*(*child).parent).genes] {
-				addToChildren(child.parent)
-			}
+			children.addItem(*(*child).parent)
 
 			return true
 		}
@@ -329,7 +303,7 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 
 	defer func() {
 		quit <- true
-		solver.pool.addAll(children)
+		solver.pool.addAll(children.items)
 	}()
 
 	for {

@@ -7,7 +7,7 @@ type pool struct {
 	items                 []sequenceInfo
 	distinctItems         map[string]bool
 	distinctItemFitnesses map[int]bool
-	addNewItem            chan sequenceInfo
+	addNewItem            chan *sequenceInfo
 	newBests              chan sequenceInfo
 	recentAdditions       chan sequenceInfo
 
@@ -27,7 +27,7 @@ func NewPool(maxPoolSize int,
 		items:                 make([]sequenceInfo, 0, maxPoolSize),
 		distinctItems:         make(map[string]bool, maxPoolSize),
 		distinctItemFitnesses: make(map[int]bool, maxPoolSize),
-		addNewItem:            make(chan sequenceInfo, maxPoolSize),
+		addNewItem:            make(chan *sequenceInfo, maxPoolSize),
 		newBests:              make(chan sequenceInfo, maxPoolSize),
 		recentAdditions:       make(chan sequenceInfo, maxPoolSize),
 	}
@@ -38,7 +38,8 @@ func NewPool(maxPoolSize int,
 			case <-quit:
 				quit <- true
 				return
-			case newItem := <-p.addNewItem:
+			case newItemPtr := <-p.addNewItem:
+				newItem := *newItemPtr
 				if p.distinctItems[newItem.genes] {
 					continue
 				}
@@ -86,8 +87,14 @@ func NewPool(maxPoolSize int,
 	return &p
 }
 
+func (p *pool) addAll(items []sequenceInfo) {
+	for _, item := range items {
+		p.addNewItem <- &item
+	}
+}
+
 func (p *pool) addItem(item sequenceInfo) {
-	go func() { p.addNewItem <- item }()
+	go func() { p.addNewItem <- &item }()
 }
 
 func (p *pool) any() bool {
@@ -101,31 +108,9 @@ func (p *pool) cap() int {
 func (p *pool) contains(item sequenceInfo) bool {
 	return p.distinctItems[item.genes]
 }
-func (p *pool) addAll(items []sequenceInfo) {
-	p.items = p.items[:min(20, len(p.items))]
-	p.resetDistinct()
-
-	for _, item := range items {
-		p.addNewItem <- item
-	}
-}
-
-func (p *pool) resetDistinct() {
-	p.distinctItems = make(map[string]bool, p.maxPoolSize)
-	p.distinctItemFitnesses = make(map[int]bool, p.maxPoolSize)
-
-	for _, item := range p.items {
-		p.distinctItems[item.genes] = true
-		p.distinctItemFitnesses[item.fitness] = true
-	}
-}
 
 func (p *pool) getBest() sequenceInfo {
 	return p.items[0]
-}
-
-func (p *pool) getWorst() sequenceInfo {
-	return p.items[len(p.items)-1]
 }
 
 func (p *pool) getRandomItem() sequenceInfo {
@@ -140,6 +125,14 @@ func (p *pool) getRandomItem() sequenceInfo {
 	return p.items[index]
 }
 
+func (p *pool) getWorst() sequenceInfo {
+	return p.items[len(p.items)-1]
+}
+
+func (p *pool) len() int {
+	return len(p.items)
+}
+
 func (p *pool) populatePool(nextChromosome chan string, geneSet string, numberOfChromosomes, numberOfGenesPerChromosome int, compareFitnesses func(sequenceInfo, sequenceInfo) bool, getFitness func(string) int, initialParent sequenceInfo) {
 
 	itemGenes := generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
@@ -151,5 +144,31 @@ func (p *pool) populatePool(nextChromosome chan string, geneSet string, numberOf
 		itemGenes = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 		sequence := sequenceInfo{genes: itemGenes, fitness: getFitness(itemGenes), strategy: initialStrategy}
 		p.addItem(sequence)
+	}
+}
+
+func (p *pool) reset() {
+	p.items = p.items[:0]
+	p.distinctItems = make(map[string]bool, p.maxPoolSize)
+	p.distinctItemFitnesses = make(map[int]bool, p.maxPoolSize)
+
+}
+
+func (p *pool) resetDistinct() {
+	p.distinctItems = make(map[string]bool, p.maxPoolSize)
+	p.distinctItemFitnesses = make(map[int]bool, p.maxPoolSize)
+
+	for _, item := range p.items {
+		p.distinctItems[item.genes] = true
+		p.distinctItemFitnesses[item.fitness] = true
+	}
+}
+
+func (p *pool) truncateAndAddAll(items []sequenceInfo) {
+	p.items = p.items[:min(20, len(p.items))]
+	p.resetDistinct()
+
+	for _, item := range items {
+		p.addNewItem <- &item
 	}
 }
