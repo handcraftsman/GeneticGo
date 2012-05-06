@@ -1,7 +1,6 @@
 package genetic
 
 import (
-	"math/rand"
 	"sync"
 )
 
@@ -26,13 +25,10 @@ type Solver struct {
 
 	needNewlineBeforeDisplay bool
 
-	maxPoolSize      int
-	pool             []sequenceInfo
-	poolLock         sync.Mutex
-	distinctPool     map[string]bool
-	distinctPoolLock sync.Mutex
+	pool        *pool
+	maxPoolSize int
 
-	random rand.Rand
+	random randomSource
 
 	initialParent  string
 	isHillClimbing bool

@@ -114,7 +114,7 @@ func (solver *Solver) flutter(strategy strategyInfo, numberOfGenesPerChromosome 
 	for {
 		parent := <-solver.randomParent
 		parentGenes := (*parent).genes
-		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, &random)
+		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
 
@@ -282,7 +282,7 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 
 		// prefer removing from the end
 		parentGenes := (*parent).genes
-		index := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, &random)
+		index := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
 		if index > 0 {
@@ -321,7 +321,7 @@ func (solver *Solver) replace(strategy strategyInfo, numberOfGenesPerChromosome 
 		}
 
 		parentGenes := (*parent).genes
-		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, &random)
+		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
 
@@ -578,17 +578,6 @@ func (solver *Solver) initializeStrategies(numberOfGenesPerChromosome int, getFi
 		solver.strategies[i].index = i
 		go func(index int) { solver.strategies[index].start(index) }(i)
 	}
-}
-
-func (solver *Solver) inPool(childGenes string) bool {
-	solver.distinctPoolLock.Lock()
-	if solver.distinctPool[childGenes] {
-		solver.distinctPoolLock.Unlock()
-		return true
-	}
-	solver.distinctPool[childGenes] = true
-	solver.distinctPoolLock.Unlock()
-	return false
 }
 
 func chooseWeightedChromosome(lenParentGenes, numberOfGenesPerChromosome int, random randomSource) int {

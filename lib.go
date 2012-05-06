@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func createRandomNumberGenerator() rand.Rand {
-	return *rand.New(rand.NewSource(time.Now().UnixNano()))
+func createRandomNumberGenerator() randomSource {
+	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
 func insertionSort(items []sequenceInfo, compare func(sequenceInfo, sequenceInfo) bool, index int) {
