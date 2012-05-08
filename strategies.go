@@ -280,16 +280,15 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 			}
 		}
 
-		// prefer removing from the end
 		parentGenes := (*parent).genes
-		index := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
+		chromosomeIndex := random.Intn(len(parentGenes)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
-		if index > 0 {
-			childGenes.WriteString(parentGenes[0:index])
+		if chromosomeIndex > 0 {
+			childGenes.WriteString(parentGenes[0:chromosomeIndex])
 		}
-		if index < len(parentGenes)-numberOfGenesPerChromosome {
-			childGenes.WriteString(parentGenes[index+numberOfGenesPerChromosome:])
+		if chromosomeIndex < len(parentGenes)-numberOfGenesPerChromosome {
+			childGenes.WriteString(parentGenes[chromosomeIndex+numberOfGenesPerChromosome:])
 		}
 
 		child := sequenceInfo{genes: childGenes.String(), strategy: strategy, parent: parent}
@@ -321,7 +320,7 @@ func (solver *Solver) replace(strategy strategyInfo, numberOfGenesPerChromosome 
 		}
 
 		parentGenes := (*parent).genes
-		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
+		chromosomeIndex := random.Intn(len(parentGenes)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
 
