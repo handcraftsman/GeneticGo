@@ -1,9 +1,5 @@
 package genetic
 
-import (
-	"sync"
-)
-
 type Solver struct {
 	MaxSecondsToRunWithoutImprovement float64
 	MaxRoundsWithoutImprovement       int
@@ -21,7 +17,6 @@ type Solver struct {
 	maxStrategySuccess             int
 	numberOfImprovements           int
 	successParentIsBestParentCount int
-	strategySuccessLock            sync.Mutex
 
 	needNewlineBeforeDisplay bool
 

@@ -137,6 +137,7 @@ func (p *pool) populatePool(nextChromosome chan string, geneSet string, numberOf
 	for i := 0; i < 2*max; i++ {
 		itemGenes = generateParent(nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome)
 		sequence := sequenceInfo{genes: itemGenes, fitness: getFitness(itemGenes), strategy: initialStrategy}
+		sequence.parent = &sequence
 		p.addItem(sequence)
 	}
 }
