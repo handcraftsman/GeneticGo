@@ -14,7 +14,8 @@ type pool struct {
 
 func NewPool(maxPoolSize int,
 	quit chan bool,
-	printDiagnosticInfo func(string),
+	printDiagnosticInfo bool,
+	printDiagnostic func(string),
 	childFitnessIsSameOrBetter func(sequenceInfo, sequenceInfo) bool,
 	display chan *sequenceInfo) *pool {
 	p := pool{
@@ -67,7 +68,9 @@ func NewPool(maxPoolSize int,
 					continue
 				}
 
-				printDiagnosticInfo(".")
+				if printDiagnosticInfo {
+					printDiagnostic(".")
+				}
 				p.distinctItemFitnesses[newItem.fitness] = true
 			}
 		}
