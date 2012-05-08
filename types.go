@@ -8,6 +8,7 @@ type Solver struct {
 	PrintDiagnosticInfo               bool
 
 	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other sequenceInfo) bool
+	printDiagnostic                                  func(string)
 
 	quit                     chan bool
 	nextGene, nextChromosome chan string

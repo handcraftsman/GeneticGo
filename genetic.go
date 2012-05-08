@@ -40,10 +40,7 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 				if !solver.childFitnessIsBetter(*candidate, bestEver) {
 					continue
 				}
-				if solver.PrintDiagnosticInfo {
-					fmt.Print("+")
-					solver.needNewlineBeforeDisplay = true
-				}
+				solver.printDiagnostic("+")
 				solver.printNewlineIfNecessary()
 				if solver.PrintStrategyUsage {
 					fmt.Print((*candidate).strategy.name)
@@ -195,10 +192,7 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 				solver.quit <- true
 				return
 			case candidate := <-displayCaptureBest:
-				if solver.PrintDiagnosticInfo {
-					fmt.Print("+")
-					solver.needNewlineBeforeDisplay = true
-				}
+				solver.printDiagnostic("+")
 				solver.printNewlineIfNecessary()
 				if solver.PrintStrategyUsage {
 					fmt.Print((*candidate).strategy.name)
@@ -233,20 +227,15 @@ func (solver *Solver) getBestWithInitialParent(getFitness func(string) int,
 
 	children := NewPool(solver.maxPoolSize,
 		quit,
-		solver.PrintDiagnosticInfo,
+		solver.printDiagnostic,
 		solver.childFitnessIsSameOrBetter,
-		func() { solver.needNewlineBeforeDisplay = true },
 		solver.pool.addNewItem)
 	poolBest := solver.pool.getBest()
 	children.addNewItem <- &poolBest
 
 	promoteChildrenIfFull := func() {
 		if children.len() >= 20 || children.len() >= 10 && time.Since(start).Seconds() > solver.MaxSecondsToRunWithoutImprovement/2 {
-			if solver.PrintDiagnosticInfo {
-				fmt.Print(">")
-				solver.needNewlineBeforeDisplay = true
-			}
-
+			solver.printDiagnostic(">")
 			solver.pool.truncateAndAddAll(children.items)
 
 			bestParent := solver.pool.getBest()
@@ -427,6 +416,7 @@ func (solver *Solver) initialize(geneSet string, numberOfGenesPerChromosome int,
 	solver.createFitnessComparisonFunctions(optimalFitness)
 	solver.initializeChannels(geneSet, numberOfGenesPerChromosome)
 	solver.needNewlineBeforeDisplay = false
+	solver.initializePrintDiagnostic()
 }
 
 func (solver *Solver) initializeChannels(geneSet string, numberOfGenesPerChromosome int) {
@@ -443,9 +433,8 @@ func (solver *Solver) initializePool(numberOfChromosomes, numberOfGenesPerChromo
 
 	solver.pool = NewPool(solver.maxPoolSize,
 		solver.quit,
-		solver.PrintDiagnosticInfo,
+		solver.printDiagnostic,
 		solver.childFitnessIsSameOrBetter,
-		func() { solver.needNewlineBeforeDisplay = true },
 		display)
 
 	solver.pool.populatePool(solver.nextChromosome, geneSet, numberOfChromosomes, numberOfGenesPerChromosome, solver.childFitnessIsBetter, getFitness, initialParent)
@@ -485,6 +474,16 @@ func (solver *Solver) nextRand(limit int) int {
 	return solver.random.Intn(limit)
 }
 
+func (solver *Solver) initializePrintDiagnostic() {
+	if !solver.PrintDiagnosticInfo {
+		solver.printDiagnostic = func(string) {}
+	} else {
+		solver.printDiagnostic = func(code string) {
+			fmt.Print(code)
+			solver.needNewlineBeforeDisplay = true
+		}
+	}
+}
 func (solver *Solver) printNewlineIfNecessary() {
 	if solver.needNewlineBeforeDisplay {
 		solver.needNewlineBeforeDisplay = false

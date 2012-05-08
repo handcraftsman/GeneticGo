@@ -1,7 +1,5 @@
 package genetic
 
-import "fmt"
-
 type pool struct {
 	random                randomSource
 	items                 []sequenceInfo
@@ -16,9 +14,8 @@ type pool struct {
 
 func NewPool(maxPoolSize int,
 	quit chan bool,
-	printDiagnosticInfo bool,
+	printDiagnosticInfo func(string),
 	childFitnessIsSameOrBetter func(sequenceInfo, sequenceInfo) bool,
-	needNewlineBeforeDisplay func(),
 	display chan *sequenceInfo) *pool {
 	p := pool{
 		maxPoolSize: maxPoolSize,
@@ -70,11 +67,7 @@ func NewPool(maxPoolSize int,
 					continue
 				}
 
-				if printDiagnosticInfo {
-					fmt.Print(".")
-					needNewlineBeforeDisplay()
-				}
-
+				printDiagnosticInfo(".")
 				p.distinctItemFitnesses[newItem.fitness] = true
 			}
 		}
