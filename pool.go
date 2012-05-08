@@ -29,7 +29,6 @@ func NewPool(maxPoolSize int,
 		distinctItemFitnesses: make(map[int]bool, maxPoolSize),
 		addNewItem:            make(chan *sequenceInfo, maxPoolSize),
 		newBests:              make(chan sequenceInfo, maxPoolSize),
-		recentAdditions:       make(chan sequenceInfo, maxPoolSize),
 	}
 
 	go func() {
@@ -47,8 +46,8 @@ func NewPool(maxPoolSize int,
 
 				if len(p.items) < 1 {
 					p.items = append(p.items, newItem)
-					insertionSort(p.items, childFitnessIsSameOrBetter, len(p.items)-1)
 				} else if childFitnessIsSameOrBetter(newItem, p.items[0]) {
+					go func() { p.newBests <- newItem }()
 					if newItem.fitness != p.items[0].fitness {
 						go func() { display <- &newItem }()
 					}
@@ -58,7 +57,6 @@ func NewPool(maxPoolSize int,
 						p.items[0], p.items[len(p.items)-1] = newItem, p.items[0]
 					}
 					insertionSort(p.items, childFitnessIsSameOrBetter, len(p.items)-1)
-					go func() { p.newBests <- newItem }()
 				} else if len(p.items) < maxPoolSize {
 					p.items = append(p.items, newItem)
 					insertionSort(p.items, childFitnessIsSameOrBetter, len(p.items)-1)
@@ -71,8 +69,6 @@ func NewPool(maxPoolSize int,
 				} else {
 					continue
 				}
-
-				go func() { p.recentAdditions <- newItem }()
 
 				if printDiagnosticInfo {
 					fmt.Print(".")
@@ -116,8 +112,6 @@ func (p *pool) getBest() sequenceInfo {
 func (p *pool) getRandomItem() sequenceInfo {
 	select {
 	case item := <-p.newBests:
-		return item
-	case item := <-p.recentAdditions:
 		return item
 	default:
 	}
