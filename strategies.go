@@ -5,9 +5,9 @@ import (
 	"strings"
 )
 
-func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
-	strategyResults := solver.strategies[0].results
-	for _, strategy := range solver.strategies {
+func (evolver *evolver) getStrategyResultChannel(name string) chan *sequenceInfo {
+	strategyResults := evolver.strategies[0].results
+	for _, strategy := range evolver.strategies {
 		if strings.Contains(strategy.name, name) {
 			strategyResults = strategy.results
 			break
@@ -16,16 +16,16 @@ func (solver *Solver) getStrategyResultChannel(name string) chan *sequenceInfo {
 	return strategyResults
 }
 
-func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) add(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	crossoverStrategyResults := solver.getStrategyResultChannel("crossover")
+	crossoverStrategyResults := evolver.getStrategyResultChannel("crossover")
 
 	for {
-		if !solver.isHillClimbing ||
+		if !evolver.isHillClimbing ||
 			numberOfGenesPerChromosome > 1 && random.Intn(100) != 0 {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-crossoverStrategyResults:
 				strategy.results <- child
@@ -33,16 +33,16 @@ func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int,
 			}
 		}
 
-		parentA := <-solver.randomParent
+		parentA := <-evolver.randomParent
 		parentAgenes := (*parentA).genes
-		parentB := <-solver.randomParent
+		parentB := <-evolver.randomParent
 		parentBgenes := (*parentB).genes
 		for parentBgenes == parentAgenes {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
-			case parentB = <-solver.randomParent:
+			case parentB = <-evolver.randomParent:
 				parentBgenes = (*parentB).genes
 			}
 		}
@@ -53,27 +53,27 @@ func (solver *Solver) add(strategy strategyInfo, numberOfGenesPerChromosome int,
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) crossover(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+	mutateStrategyResults := evolver.getStrategyResultChannel("mutate")
 
 	for {
-		parentA := <-solver.randomParent
+		parentA := <-evolver.randomParent
 		parentAgenes := (*parentA).genes
-		parentB := <-solver.randomParent
+		parentB := <-evolver.randomParent
 		parentBgenes := (*parentB).genes
 
 		if len(parentAgenes) == numberOfGenesPerChromosome || len(parentBgenes) == numberOfGenesPerChromosome {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-mutateStrategyResults:
 				strategy.results <- child
@@ -102,17 +102,17 @@ func (solver *Solver) crossover(strategy strategyInfo, numberOfGenesPerChromosom
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) flutter(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) flutter(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		parentGenes := (*parent).genes
 		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
 
@@ -138,14 +138,14 @@ func (solver *Solver) flutter(strategy strategyInfo, numberOfGenesPerChromosome 
 				modifier++
 				anyChanged = true
 			}
-			geneSetIndex := strings.Index(solver.geneSet, parentGenes[start+i:start+i+1])
+			geneSetIndex := strings.Index(evolver.geneSet, parentGenes[start+i:start+i+1])
 			geneSetIndex += modifier
 			if geneSetIndex < 0 {
-				geneSetIndex += len(solver.geneSet)
-			} else if geneSetIndex >= len(solver.geneSet) {
-				geneSetIndex -= len(solver.geneSet)
+				geneSetIndex += len(evolver.geneSet)
+			} else if geneSetIndex >= len(evolver.geneSet) {
+				geneSetIndex -= len(evolver.geneSet)
 			}
-			childGenes.WriteString(solver.geneSet[geneSetIndex : geneSetIndex+1])
+			childGenes.WriteString(evolver.geneSet[geneSetIndex : geneSetIndex+1])
 		}
 
 		if start+numberOfGenesToFlutter < len(parentGenes) {
@@ -156,14 +156,14 @@ func (solver *Solver) flutter(strategy strategyInfo, numberOfGenesPerChromosome 
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) mutate(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
 	mutateOneGene := func(parentGenes string) (string, bool) {
 		parentIndex := random.Intn(len(parentGenes))
@@ -178,10 +178,10 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 		gene := currentGene
 		for gene == currentGene {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return "", true
-			case gene = <-solver.nextGene:
+			case gene = <-evolver.nextGene:
 				if len(gene) != 1 {
 					return "", true
 				}
@@ -196,7 +196,7 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 	}
 
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		childGenes, quit := mutateOneGene((*parent).genes)
 		if quit {
 			return
@@ -212,26 +212,26 @@ func (solver *Solver) mutate(strategy strategyInfo, numberOfGenesPerChromosome i
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) rand(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) rand(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		parentLen := len((*parent).genes)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, parentLen))
 		length := 0
 		for length < parentLen {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
-			case chromosome := <-solver.nextChromosome:
+			case chromosome := <-evolver.nextChromosome:
 				if len(chromosome) != numberOfGenesPerChromosome {
 					return
 				}
@@ -244,23 +244,23 @@ func (solver *Solver) rand(strategy strategyInfo, numberOfGenesPerChromosome int
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) remove(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
-	swapStrategyResults := solver.getStrategyResultChannel("swap")
+	mutateStrategyResults := evolver.getStrategyResultChannel("mutate")
+	swapStrategyResults := evolver.getStrategyResultChannel("swap")
 
 	for {
-		if !solver.isHillClimbing {
+		if !evolver.isHillClimbing {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-swapStrategyResults:
 				strategy.results <- child
@@ -268,11 +268,11 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 			}
 		}
 
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		if len(parent.genes) <= numberOfGenesPerChromosome {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-mutateStrategyResults:
 				strategy.results <- child
@@ -295,23 +295,23 @@ func (solver *Solver) remove(strategy strategyInfo, numberOfGenesPerChromosome i
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) replace(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) replace(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+	mutateStrategyResults := evolver.getStrategyResultChannel("mutate")
 
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		if len(parent.genes) == numberOfGenesPerChromosome {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-mutateStrategyResults:
 				strategy.results <- child
@@ -334,10 +334,10 @@ func (solver *Solver) replace(strategy strategyInfo, numberOfGenesPerChromosome 
 
 		for i := 0; i < numberOfGenesToMutate; i++ {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
-			case gene := <-solver.nextGene:
+			case gene := <-evolver.nextGene:
 				if len(gene) != 1 {
 					return
 				}
@@ -353,25 +353,25 @@ func (solver *Solver) replace(strategy strategyInfo, numberOfGenesPerChromosome 
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) reverse(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+	mutateStrategyResults := evolver.getStrategyResultChannel("mutate")
 
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		parentGenes := (*parent).genes
 
 		if len(parent.genes) == numberOfGenesPerChromosome {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-mutateStrategyResults:
 				strategy.results <- child
@@ -409,26 +409,26 @@ func (solver *Solver) reverse(strategy strategyInfo, numberOfGenesPerChromosome 
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) shift(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+	mutateStrategyResults := evolver.getStrategyResultChannel("mutate")
 
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		parentGenes := (*parent).genes
 
 		numberOfChromosomesInParent := len(parent.genes) / numberOfGenesPerChromosome
 		if numberOfChromosomesInParent < 2 {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-mutateStrategyResults:
 				strategy.results <- child
@@ -468,19 +468,19 @@ func (solver *Solver) shift(strategy strategyInfo, numberOfGenesPerChromosome in
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
 }
 
-func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int, getFitness func(string) int) {
+func (evolver *evolver) swap(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	random := createRandomNumberGenerator()
-	mutateStrategyResults := solver.getStrategyResultChannel("mutate")
+	mutateStrategyResults := evolver.getStrategyResultChannel("mutate")
 
 	for {
-		parent := <-solver.randomParent
+		parent := <-evolver.randomParent
 		parentGenes := (*parent).genes
 
 		swapLength := numberOfGenesPerChromosome
@@ -490,8 +490,8 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 
 		if len(parentGenes) == swapLength {
 			select {
-			case <-solver.quit:
-				solver.quit <- true
+			case <-evolver.quit:
+				evolver.quit <- true
 				return
 			case child := <-mutateStrategyResults:
 				strategy.results <- child
@@ -529,8 +529,8 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 
 		select {
 		case strategy.results <- &child:
-		case <-solver.quit:
-			solver.quit <- true
+		case <-evolver.quit:
+			evolver.quit <- true
 			return
 		}
 	}
@@ -538,44 +538,44 @@ func (solver *Solver) swap(strategy strategyInfo, numberOfGenesPerChromosome int
 
 const initialStrategySuccess = 3
 
-func (solver *Solver) initializeStrategies(numberOfGenesPerChromosome int, getFitness func(string) int) {
-	solver.strategies = []strategyInfo{
+func (evolver *evolver) initializeStrategies() {
+	evolver.strategies = []strategyInfo{
 		{name: "add       ", start: func(strategyIndex int) {
-			solver.add(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.add(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "crossover ", start: func(strategyIndex int) {
-			solver.crossover(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.crossover(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "flutter   ", start: func(strategyIndex int) {
-			solver.flutter(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.flutter(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "mutate    ", start: func(strategyIndex int) {
-			solver.mutate(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.mutate(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "random    ", start: func(strategyIndex int) {
-			solver.rand(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.rand(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "remove    ", start: func(strategyIndex int) {
-			solver.remove(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.remove(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "replace   ", start: func(strategyIndex int) {
-			solver.replace(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.replace(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "reverse   ", start: func(strategyIndex int) {
-			solver.reverse(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.reverse(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "shift     ", start: func(strategyIndex int) {
-			solver.shift(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.shift(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 		{name: "swap      ", start: func(strategyIndex int) {
-			solver.swap(solver.strategies[strategyIndex], numberOfGenesPerChromosome, getFitness)
+			evolver.swap(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 	}
-	solver.maxStrategySuccess = initialStrategySuccess
+	evolver.maxStrategySuccess = initialStrategySuccess
 
-	for i, _ := range solver.strategies {
-		solver.strategies[i].index = i
-		go func(index int) { solver.strategies[index].start(index) }(i)
+	for i, _ := range evolver.strategies {
+		evolver.strategies[i].index = i
+		go func(index int) { evolver.strategies[index].start(index) }(i)
 	}
 }
 
