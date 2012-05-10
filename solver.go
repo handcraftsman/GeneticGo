@@ -18,7 +18,7 @@ type Solver struct {
 	successParentIsBestParentCount int
 	numberOfImprovements           int
 
-	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other sequenceInfo) bool
+	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other *sequenceInfo) bool
 }
 
 func (solver *Solver) GetBest(getFitness func(string) int,
@@ -43,13 +43,13 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 			case <-quit:
 				return
 			case candidate := <-displayCaptureBest:
-				if !solver.childFitnessIsBetter(*candidate, bestEver) {
+				if !solver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
 				if solver.PrintDiagnosticInfo {
-					fmt.Print((*candidate).strategy.name)
+					fmt.Print(candidate.strategy.name)
 				}
-				display((*candidate).genes)
+				display(candidate.genes)
 
 				solver.incrementStrategyUseCount(candidate, &bestEver)
 
@@ -100,13 +100,13 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 			case <-quit:
 				return
 			case candidate := <-displayCaptureBest:
-				if !solver.childFitnessIsBetter(*candidate, bestEver) {
+				if !solver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
 				if solver.PrintDiagnosticInfo {
-					fmt.Print((*candidate).strategy.name)
+					fmt.Print(candidate.strategy.name)
 				}
-				display((*candidate).genes)
+				display(candidate.genes)
 
 				solver.incrementStrategyUseCount(candidate, &bestEver)
 
@@ -143,19 +143,19 @@ func (solver *Solver) With(initialParentGenes string) *Solver {
 func (solver *Solver) createFitnessComparisonFunctions(bestPossibleFitness int, isHillClimbing bool) {
 	if !isHillClimbing {
 		if solver.LowerFitnessesAreBetter {
-			solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsBetter = func(child, other *sequenceInfo) bool {
 				return child.fitness < other.fitness
 			}
 
-			solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsSameOrBetter = func(child, other *sequenceInfo) bool {
 				return child.fitness <= other.fitness
 			}
 		} else {
-			solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsBetter = func(child, other *sequenceInfo) bool {
 				return child.fitness > other.fitness
 			}
 
-			solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsSameOrBetter = func(child, other *sequenceInfo) bool {
 				return child.fitness >= other.fitness
 			}
 		}
@@ -180,7 +180,7 @@ func (solver *Solver) createFitnessComparisonFunctions(bestPossibleFitness int, 
 		}
 
 		if solver.LowerFitnessesAreBetter {
-			solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsBetter = func(child, other *sequenceInfo) bool {
 				eitherIsInvalid, toReturn := checkIfEitherIsInvalid(child.fitness, other.fitness)
 				if eitherIsInvalid {
 					return toReturn
@@ -194,7 +194,7 @@ func (solver *Solver) createFitnessComparisonFunctions(bestPossibleFitness int, 
 				return false
 			}
 
-			solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsSameOrBetter = func(child, other *sequenceInfo) bool {
 				eitherIsInvalid, toReturn := checkIfEitherIsInvalid(child.fitness, other.fitness)
 				if eitherIsInvalid {
 					return toReturn
@@ -213,7 +213,7 @@ func (solver *Solver) createFitnessComparisonFunctions(bestPossibleFitness int, 
 				return false
 			}
 		} else {
-			solver.childFitnessIsBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsBetter = func(child, other *sequenceInfo) bool {
 				eitherIsInvalid, toReturn := checkIfEitherIsInvalid(child.fitness, other.fitness)
 				if eitherIsInvalid {
 					return toReturn
@@ -227,7 +227,7 @@ func (solver *Solver) createFitnessComparisonFunctions(bestPossibleFitness int, 
 				return false
 			}
 
-			solver.childFitnessIsSameOrBetter = func(child, other sequenceInfo) bool {
+			solver.childFitnessIsSameOrBetter = func(child, other *sequenceInfo) bool {
 				eitherIsInvalid, toReturn := checkIfEitherIsInvalid(child.fitness, other.fitness)
 				if eitherIsInvalid {
 					return toReturn
@@ -257,18 +257,18 @@ func (solver *Solver) ensureMaxSecondsToRunIsValid() {
 }
 
 func (solver *Solver) incrementStrategyUseCount(candidate, bestEver *sequenceInfo) {
-	if bestEver.genes == (*(*candidate).parent).genes {
+	if bestEver.genes == candidate.parent.genes {
 		solver.successParentIsBestParentCount++
 	}
 	solver.numberOfImprovements++
 
-	strategyName := (*candidate).strategy.name
+	strategyName := candidate.strategy.name
 	strategy, exists := solver.strategies[strategyName]
 	if !exists {
 		strategy = &strategyInfo{name: strategyName}
 		solver.strategies[strategyName] = strategy
 	}
-	(*strategy).successCount++
+	strategy.successCount++
 }
 
 func (solver *Solver) initialize(getFitness func(string) int, optimalFitness int, isHillClimbing bool) {

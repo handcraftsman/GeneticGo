@@ -14,7 +14,7 @@ type evolver struct {
 	display                           chan *sequenceInfo
 	getFitness                        func(string) int
 
-	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other sequenceInfo) bool
+	childFitnessIsBetter, childFitnessIsSameOrBetter func(child, other *sequenceInfo) bool
 
 	quit                     chan bool
 	nextGene, nextChromosome chan string
@@ -61,10 +61,10 @@ func (evolver *evolver) getBest(numberOfChromosomes int) {
 				evolver.quit <- true
 				return
 			case candidate := <-displayCaptureBest:
-				if !evolver.childFitnessIsBetter(*candidate, bestEver) {
+				if !evolver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
-				evolver.display <- candidate
+				go func() { evolver.display <- candidate }()
 
 				evolver.incrementStrategyUseCount(candidate, &bestEver)
 
@@ -97,10 +97,10 @@ func (evolver *evolver) getBestUsingHillClimbing(maxNumberOfChromosomes, bestPos
 				evolver.quit <- true
 				return
 			case candidate := <-filteredDisplay:
-				if !evolver.childFitnessIsBetter(*candidate, bestEver) {
+				if !evolver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
-				evolver.display <- candidate
+				go func() { evolver.display <- candidate }()
 				roundsSinceLastImprovement = 0
 
 				evolver.incrementStrategyUseCount(candidate, &bestEver)
@@ -152,7 +152,7 @@ func (evolver *evolver) getBestUsingHillClimbing(maxNumberOfChromosomes, bestPos
 
 		evolver.maxPoolSize = getMaxPoolSize(len(bestEver.genes)/evolver.numberOfGenesPerChromosome+1, evolver.numberOfGenesPerChromosome, len(evolver.geneSet))
 
-		newPool := make([]sequenceInfo, 0, evolver.maxPoolSize)
+		newPool := make([]*sequenceInfo, 0, evolver.maxPoolSize)
 		distinctPool := make(map[string]bool, evolver.maxPoolSize)
 
 		improved := false
@@ -171,15 +171,15 @@ func (evolver *evolver) getBestUsingHillClimbing(maxNumberOfChromosomes, bestPos
 
 				fitness := evolver.getFitness(childGenes)
 				child := sequenceInfo{genes: childGenes, fitness: fitness, strategy: climbStrategy}
-				child.parent = &parent
+				child.parent = parent
 				if len(newPool) < evolver.maxPoolSize {
-					newPool = append(newPool, child)
+					newPool = append(newPool, &child)
 				} else {
-					newPool[len(newPool)-1] = child
+					newPool[len(newPool)-1] = &child
 				}
 				insertionSort(newPool, evolver.childFitnessIsSameOrBetter, len(newPool)-1)
 
-				if evolver.childFitnessIsBetter(child, bestEver) {
+				if evolver.childFitnessIsBetter(&child, &bestEver) {
 					improved = true
 					filteredDisplay <- &child
 				}
@@ -201,7 +201,7 @@ func (evolver *evolver) getBestWithInitialParent(numberOfChromosomes int) {
 		evolver.childFitnessIsSameOrBetter,
 		evolver.pool.addNewItem)
 	poolBest := evolver.pool.getBest()
-	children.addNewItem <- &poolBest
+	children.addNewItem <- poolBest
 
 	timeout := make(chan bool, 1)
 	go func() {
@@ -232,31 +232,31 @@ func (evolver *evolver) getBestWithInitialParent(numberOfChromosomes int) {
 			}
 			select {
 			case child := <-evolver.strategies[index].results:
-				if evolver.pool.contains(*child) {
+				if evolver.pool.contains(child) {
 					continue
 				}
 				go func() {
-					(*child).fitness = evolver.getFitness((*child).genes)
+					child.fitness = evolver.getFitness(child.genes)
 
 					if !evolver.pool.any() {
 						return // already returned final result
 					}
 
 					poolWorst := evolver.pool.getWorst()
-					if !evolver.childFitnessIsSameOrBetter(*child, poolWorst) {
+					if !evolver.childFitnessIsSameOrBetter(child, poolWorst) {
 						return
 					}
 
-					if (*child).fitness == poolWorst.fitness {
-						evolver.pool.addItem(*child)
+					if child.fitness == poolWorst.fitness {
+						evolver.pool.addItem(child)
 						return
 					}
 
-					children.addItem(*child)
+					children.addItem(child)
 
 					poolBest := evolver.pool.getBest()
-					if evolver.childFitnessIsBetter(*child, poolBest) {
-						children.addItem(*(*child).parent)
+					if evolver.childFitnessIsBetter(child, poolBest) {
+						children.addItem(child.parent)
 						start = time.Now()
 					}
 				}()
@@ -278,12 +278,12 @@ func (evolver *evolver) getBestWithInitialParent(numberOfChromosomes int) {
 
 func (evolver *evolver) incrementStrategyUseCount(candidate, bestEver *sequenceInfo) {
 
-	if bestEver.genes == (*(*candidate).parent).genes {
+	if bestEver.genes == candidate.parent.genes {
 		evolver.successParentIsBestParentCount++
 	}
 	evolver.numberOfImprovements++
 
-	strategyIndex := (*candidate).strategy.index
+	strategyIndex := candidate.strategy.index
 	evolver.strategies[strategyIndex].successCount++
 	if evolver.strategies[strategyIndex].successCount > evolver.maxStrategySuccess {
 		evolver.maxStrategySuccess = evolver.strategies[strategyIndex].successCount
@@ -318,7 +318,7 @@ func (evolver *evolver) initializePool(numberOfChromosomes int, display chan *se
 		evolver.initialParent.parent = &evolver.initialParent
 	}
 
-	evolver.pool.populatePool(evolver.nextChromosome, evolver.geneSet, numberOfChromosomes, evolver.numberOfGenesPerChromosome, evolver.childFitnessIsBetter, evolver.getFitness, evolver.initialParent)
+	evolver.pool.populatePool(evolver.nextChromosome, evolver.geneSet, numberOfChromosomes, evolver.numberOfGenesPerChromosome, evolver.childFitnessIsBetter, evolver.getFitness, &evolver.initialParent)
 
 	evolver.numberOfImprovements = 1
 	evolver.randomParent = make(chan *sequenceInfo, 10)
@@ -329,6 +329,7 @@ func (evolver *evolver) initializePool(numberOfChromosomes int, display chan *se
 				evolver.quit <- true
 				return
 			default:
+
 				sendBestParent := evolver.random.Intn(evolver.numberOfImprovements) <= evolver.successParentIsBestParentCount
 				if sendBestParent {
 					parent := evolver.pool.getBest()
@@ -336,15 +337,16 @@ func (evolver *evolver) initializePool(numberOfChromosomes int, display chan *se
 					case <-evolver.quit:
 						evolver.quit <- true
 						return
-					case evolver.randomParent <- &parent:
+					case evolver.randomParent <- parent:
 					}
 				}
+
 				parent := evolver.pool.getRandomItem()
 				select {
 				case <-evolver.quit:
 					evolver.quit <- true
 					return
-				case evolver.randomParent <- &parent:
+				case evolver.randomParent <- parent:
 				}
 			}
 		}

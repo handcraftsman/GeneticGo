@@ -34,16 +34,16 @@ func (evolver *evolver) add(strategy strategyInfo, numberOfGenesPerChromosome in
 		}
 
 		parentA := <-evolver.randomParent
-		parentAgenes := (*parentA).genes
+		parentAgenes := parentA.genes
 		parentB := <-evolver.randomParent
-		parentBgenes := (*parentB).genes
+		parentBgenes := parentB.genes
 		for parentBgenes == parentAgenes {
 			select {
 			case <-evolver.quit:
 				evolver.quit <- true
 				return
 			case parentB = <-evolver.randomParent:
-				parentBgenes = (*parentB).genes
+				parentBgenes = parentB.genes
 			}
 		}
 
@@ -66,9 +66,9 @@ func (evolver *evolver) crossover(strategy strategyInfo, numberOfGenesPerChromos
 
 	for {
 		parentA := <-evolver.randomParent
-		parentAgenes := (*parentA).genes
+		parentAgenes := parentA.genes
 		parentB := <-evolver.randomParent
-		parentBgenes := (*parentB).genes
+		parentBgenes := parentB.genes
 
 		if len(parentAgenes) == numberOfGenesPerChromosome || len(parentBgenes) == numberOfGenesPerChromosome {
 			select {
@@ -113,7 +113,7 @@ func (evolver *evolver) flutter(strategy strategyInfo, numberOfGenesPerChromosom
 	random := createRandomNumberGenerator()
 	for {
 		parent := <-evolver.randomParent
-		parentGenes := (*parent).genes
+		parentGenes := parent.genes
 		chromosomeIndex := chooseWeightedChromosome(len(parentGenes), numberOfGenesPerChromosome, random)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
@@ -197,7 +197,7 @@ func (evolver *evolver) mutate(strategy strategyInfo, numberOfGenesPerChromosome
 
 	for {
 		parent := <-evolver.randomParent
-		childGenes, quit := mutateOneGene((*parent).genes)
+		childGenes, quit := mutateOneGene(parent.genes)
 		if quit {
 			return
 		}
@@ -222,7 +222,7 @@ func (evolver *evolver) mutate(strategy strategyInfo, numberOfGenesPerChromosome
 func (evolver *evolver) rand(strategy strategyInfo, numberOfGenesPerChromosome int) {
 	for {
 		parent := <-evolver.randomParent
-		parentLen := len((*parent).genes)
+		parentLen := len(parent.genes)
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, parentLen))
 		length := 0
@@ -280,7 +280,7 @@ func (evolver *evolver) remove(strategy strategyInfo, numberOfGenesPerChromosome
 			}
 		}
 
-		parentGenes := (*parent).genes
+		parentGenes := parent.genes
 		chromosomeIndex := random.Intn(len(parentGenes)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
@@ -319,7 +319,7 @@ func (evolver *evolver) replace(strategy strategyInfo, numberOfGenesPerChromosom
 			}
 		}
 
-		parentGenes := (*parent).genes
+		parentGenes := parent.genes
 		chromosomeIndex := random.Intn(len(parentGenes)/numberOfGenesPerChromosome) * numberOfGenesPerChromosome
 
 		childGenes := bytes.NewBuffer(make([]byte, 0, len(parentGenes)))
@@ -366,7 +366,7 @@ func (evolver *evolver) reverse(strategy strategyInfo, numberOfGenesPerChromosom
 
 	for {
 		parent := <-evolver.randomParent
-		parentGenes := (*parent).genes
+		parentGenes := parent.genes
 
 		if len(parent.genes) == numberOfGenesPerChromosome {
 			select {
@@ -422,7 +422,7 @@ func (evolver *evolver) shift(strategy strategyInfo, numberOfGenesPerChromosome 
 
 	for {
 		parent := <-evolver.randomParent
-		parentGenes := (*parent).genes
+		parentGenes := parent.genes
 
 		numberOfChromosomesInParent := len(parent.genes) / numberOfGenesPerChromosome
 		if numberOfChromosomesInParent < 2 {
@@ -481,7 +481,7 @@ func (evolver *evolver) swap(strategy strategyInfo, numberOfGenesPerChromosome i
 
 	for {
 		parent := <-evolver.randomParent
-		parentGenes := (*parent).genes
+		parentGenes := parent.genes
 
 		swapLength := numberOfGenesPerChromosome
 		if random.Intn(2) == 0 {

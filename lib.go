@@ -10,7 +10,7 @@ func createRandomNumberGenerator() randomSource {
 	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
-func insertionSort(items []sequenceInfo, compare func(sequenceInfo, sequenceInfo) bool, index int) {
+func insertionSort(items []*sequenceInfo, compare func(*sequenceInfo, *sequenceInfo) bool, index int) {
 	if index < 1 || index > len(items) {
 		return
 	}
