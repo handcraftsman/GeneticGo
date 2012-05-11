@@ -1,10 +1,11 @@
 package genetic
 
 type sequenceInfo struct {
-	genes    string
-	fitness  int
-	strategy strategyInfo
-	parent   *sequenceInfo
+	genes     string
+	fitness   int
+	strategy  strategyInfo
+	parent    *sequenceInfo
+	evolverId int
 }
 
 type strategyInfo struct {

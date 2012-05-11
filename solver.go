@@ -3,6 +3,7 @@ package genetic
 import (
 	"fmt"
 	"math"
+	"runtime"
 )
 
 type Solver struct {
@@ -11,6 +12,8 @@ type Solver struct {
 	LowerFitnessesAreBetter           bool
 	PrintStrategyUsage                bool
 	PrintDiagnosticInfo               bool
+	NumberOfConcurrentEvolvers        int
+	MaxProcs                          int
 
 	initialParentGenes             string
 	initialParent                  sequenceInfo
@@ -37,17 +40,22 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 	bestEver := solver.initialParent
 	displayCaptureBest := make(chan *sequenceInfo)
 
+	if solver.MaxProcs > 1 {
+		runtime.GOMAXPROCS(min(solver.MaxProcs, runtime.NumCPU()))
+	}
+
 	go func() {
 		for {
 			select {
 			case <-quit:
+				quit <- true
 				return
 			case candidate := <-displayCaptureBest:
 				if !solver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
 				if solver.PrintDiagnosticInfo {
-					fmt.Print(candidate.strategy.name)
+					fmt.Print("e ", candidate.evolverId, "\t", candidate.strategy.name)
 				}
 				display(candidate.genes)
 
@@ -58,20 +66,55 @@ func (solver *Solver) GetBest(getFitness func(string) int,
 		}
 	}()
 
-	e := evolver{
-		maxSecondsToRunWithoutImprovement: solver.MaxSecondsToRunWithoutImprovement,
-		maxRoundsWithoutImprovement:       solver.MaxRoundsWithoutImprovement,
-		lowerFitnessesAreBetter:           solver.LowerFitnessesAreBetter,
-		childFitnessIsBetter:              solver.childFitnessIsBetter,
-		childFitnessIsSameOrBetter:        solver.childFitnessIsSameOrBetter,
-		geneSet:                           geneSet,
-		numberOfGenesPerChromosome:        numberOfGenesPerChromosome,
-		initialParent:                     solver.initialParent,
-		display:                           displayCaptureBest,
-		getFitness:                        getFitness,
+	done := make(chan int)
+	startEvolver := func(id int) {
+		for {
+			initialParent := bestEver
+			e := evolver{
+				maxSecondsToRunWithoutImprovement: solver.MaxSecondsToRunWithoutImprovement,
+				maxRoundsWithoutImprovement:       solver.MaxRoundsWithoutImprovement,
+				lowerFitnessesAreBetter:           solver.LowerFitnessesAreBetter,
+				childFitnessIsBetter:              solver.childFitnessIsBetter,
+				childFitnessIsSameOrBetter:        solver.childFitnessIsSameOrBetter,
+				geneSet:                           geneSet,
+				numberOfGenesPerChromosome:        numberOfGenesPerChromosome,
+				initialParent:                     initialParent,
+				display:                           displayCaptureBest,
+				getFitness:                        getFitness,
+				id:                                id,
+			}
+			e.getBest(numberOfChromosomes)
+			if solver.NumberOfConcurrentEvolvers < 2 ||
+				initialParent.genes == bestEver.genes {
+				break
+			}
+			if solver.PrintDiagnosticInfo {
+				fmt.Println("e", id, " restarting")
+			}
+		}
+		done <- id
 	}
-	e.getBest(numberOfChromosomes)
 
+	numberOfParentLines := max(1, solver.NumberOfConcurrentEvolvers)
+	for i := 0; i < numberOfParentLines; i++ {
+		go startEvolver(i + 1)
+	}
+
+	doneCount := 0
+	for {
+		select {
+		case id := <-done:
+			doneCount++
+			if solver.PrintDiagnosticInfo {
+				fmt.Println("e", id, " finished")
+			}
+			if doneCount == numberOfParentLines {
+				goto end
+			}
+		}
+	}
+
+end:
 	solver.printStrategyUsage()
 
 	return bestEver.genes
@@ -94,17 +137,22 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 	bestEver := solver.initialParent
 	displayCaptureBest := make(chan *sequenceInfo)
 
+	if solver.MaxProcs > 1 {
+		runtime.GOMAXPROCS(min(solver.MaxProcs, runtime.NumCPU()))
+	}
+
 	go func() {
 		for {
 			select {
 			case <-quit:
+				quit <- true
 				return
 			case candidate := <-displayCaptureBest:
 				if !solver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
 				if solver.PrintDiagnosticInfo {
-					fmt.Print(candidate.strategy.name)
+					fmt.Print("e ", candidate.evolverId, "\t", candidate.strategy.name)
 				}
 				display(candidate.genes)
 
@@ -115,21 +163,58 @@ func (solver *Solver) GetBestUsingHillClimbing(getFitness func(string) int,
 		}
 	}()
 
-	e := evolver{
-		maxSecondsToRunWithoutImprovement: solver.MaxSecondsToRunWithoutImprovement,
-		maxRoundsWithoutImprovement:       solver.MaxRoundsWithoutImprovement,
-		lowerFitnessesAreBetter:           solver.LowerFitnessesAreBetter,
-		childFitnessIsBetter:              solver.childFitnessIsBetter,
-		childFitnessIsSameOrBetter:        solver.childFitnessIsSameOrBetter,
-		geneSet:                           geneSet,
-		numberOfGenesPerChromosome:        numberOfGenesPerChromosome,
-		initialParent:                     solver.initialParent,
-		display:                           displayCaptureBest,
-		getFitness:                        getFitness,
+	done := make(chan int)
+	startEvolver := func(id int) {
+		for {
+			initialParent := bestEver
+
+			e := evolver{
+				maxSecondsToRunWithoutImprovement: solver.MaxSecondsToRunWithoutImprovement,
+				maxRoundsWithoutImprovement:       solver.MaxRoundsWithoutImprovement,
+				lowerFitnessesAreBetter:           solver.LowerFitnessesAreBetter,
+				childFitnessIsBetter:              solver.childFitnessIsBetter,
+				childFitnessIsSameOrBetter:        solver.childFitnessIsSameOrBetter,
+				geneSet:                           geneSet,
+				numberOfGenesPerChromosome:        numberOfGenesPerChromosome,
+				initialParent:                     initialParent,
+				display:                           displayCaptureBest,
+				getFitness:                        getFitness,
+				id:                                id,
+			}
+
+			e.getBestUsingHillClimbing(maxNumberOfChromosomes, bestPossibleFitness)
+
+			if solver.NumberOfConcurrentEvolvers < 2 ||
+				initialParent.genes == bestEver.genes {
+				break
+			}
+			if solver.PrintDiagnosticInfo {
+				fmt.Println("e", id, " restarting")
+			}
+		}
+		done <- id
 	}
 
-	e.getBestUsingHillClimbing(maxNumberOfChromosomes, bestPossibleFitness)
+	numberOfParentLines := max(1, solver.NumberOfConcurrentEvolvers)
+	for i := 0; i < numberOfParentLines; i++ {
+		go startEvolver(i + 1)
+	}
 
+	doneCount := 0
+	for {
+		select {
+		case id := <-done:
+			doneCount++
+			if solver.PrintDiagnosticInfo {
+				fmt.Println("e", id, " finished")
+			}
+			if doneCount == numberOfParentLines {
+				goto end
+			}
+		}
+	}
+
+end:
 	solver.printStrategyUsage()
 
 	return bestEver.genes

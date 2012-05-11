@@ -536,7 +536,7 @@ func (evolver *evolver) swap(strategy strategyInfo, numberOfGenesPerChromosome i
 	}
 }
 
-const initialStrategySuccess = 3
+const initialStrategySuccess = 0
 
 func (evolver *evolver) initializeStrategies() {
 	evolver.strategies = []strategyInfo{
@@ -571,7 +571,6 @@ func (evolver *evolver) initializeStrategies() {
 			evolver.swap(evolver.strategies[strategyIndex], evolver.numberOfGenesPerChromosome)
 		}, successCount: initialStrategySuccess, results: make(chan *sequenceInfo, 1)},
 	}
-	evolver.maxStrategySuccess = initialStrategySuccess
 
 	for i, _ := range evolver.strategies {
 		evolver.strategies[i].index = i

@@ -95,9 +95,16 @@ func (p *pool) getBest() *sequenceInfo {
 	return p.items[0]
 }
 
-func (p *pool) getRandomItem() *sequenceInfo {
+func (p *pool) getRandomItem() (ret *sequenceInfo) {
 	index := p.random.Intn(len(p.items))
-	return p.items[index]
+	defer func() {
+		if r := recover(); r != nil {
+			ret = p.items[0]
+		}
+	}()
+
+	ret = p.items[index]
+	return
 }
 
 func (p *pool) getWorst() *sequenceInfo {
@@ -123,11 +130,10 @@ func (p *pool) populatePool(nextChromosome chan string, geneSet string, numberOf
 	}
 }
 
-func (p *pool) reset() {
-	p.items = p.items[:0]
-	p.distinctItems = make(map[string]bool, p.maxPoolSize)
-	p.distinctItemFitnesses = make(map[int]bool, p.maxPoolSize)
-
+func (p *pool) reset(item *sequenceInfo) {
+	p.items = p.items[:1]
+	p.resetDistinct()
+	p.addNewItem <- item
 }
 
 func (p *pool) resetDistinct() {

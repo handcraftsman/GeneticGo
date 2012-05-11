@@ -1,12 +1,14 @@
 package genetic
 
 import (
+	//rnd "github.com/handcraftsman/Random"
 	"math/rand"
 	s "sort"
 	"time"
 )
 
 func createRandomNumberGenerator() randomSource {
+	//return rnd.NewRandom()
 	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 

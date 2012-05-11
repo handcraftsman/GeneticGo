@@ -5,6 +5,7 @@ import (
 )
 
 type evolver struct {
+	id                                int
 	maxSecondsToRunWithoutImprovement float64
 	maxRoundsWithoutImprovement       int
 	lowerFitnessesAreBetter           bool
@@ -32,7 +33,6 @@ type evolver struct {
 }
 
 func (evolver *evolver) getBest(numberOfChromosomes int) {
-
 	evolver.isHillClimbing = false
 	evolver.initialize()
 
@@ -64,6 +64,7 @@ func (evolver *evolver) getBest(numberOfChromosomes int) {
 				if !evolver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
+				candidate.evolverId = evolver.id
 				go func() { evolver.display <- candidate }()
 
 				evolver.incrementStrategyUseCount(candidate, &bestEver)
@@ -77,7 +78,6 @@ func (evolver *evolver) getBest(numberOfChromosomes int) {
 }
 
 func (evolver *evolver) getBestUsingHillClimbing(maxNumberOfChromosomes, bestPossibleFitness int) {
-
 	evolver.isHillClimbing = true
 	evolver.initialize()
 
@@ -100,6 +100,7 @@ func (evolver *evolver) getBestUsingHillClimbing(maxNumberOfChromosomes, bestPos
 				if !evolver.childFitnessIsBetter(candidate, &bestEver) {
 					continue
 				}
+				candidate.evolverId = evolver.id
 				go func() { evolver.display <- candidate }()
 				roundsSinceLastImprovement = 0
 
@@ -112,8 +113,8 @@ func (evolver *evolver) getBestUsingHillClimbing(maxNumberOfChromosomes, bestPos
 
 	defer func() {
 		evolver.quit <- true
-		evolver.quit <- true
-		evolver.quit <- true
+		go func() { evolver.quit <- true }()
+		go func() { evolver.quit <- true }()
 		<-evolver.nextChromosome
 		<-evolver.nextGene
 		for _, strategy := range evolver.strategies {
@@ -224,8 +225,9 @@ func (evolver *evolver) getBestWithInitialParent(numberOfChromosomes int) {
 	}()
 
 	for {
+		maxStrategySuccess := evolver.maxStrategySuccess
 		// prefer successful strategies
-		minStrategySuccess := evolver.random.Intn(evolver.maxStrategySuccess)
+		minStrategySuccess := evolver.random.Intn(maxStrategySuccess)
 		for index := 0; index < len(evolver.strategies); index++ {
 			if evolver.strategies[index].successCount < minStrategySuccess {
 				continue
@@ -261,14 +263,16 @@ func (evolver *evolver) getBestWithInitialParent(numberOfChromosomes int) {
 					}
 				}()
 			case <-timeout:
-				if time.Since(start).Seconds() >= evolver.maxSecondsToRunWithoutImprovement {
+				elapsedSeconds := time.Since(start).Seconds()
+				if elapsedSeconds >= evolver.maxSecondsToRunWithoutImprovement {
 					return
 				}
-				if children.len() >= 20 || children.len() >= 10 && time.Since(start).Seconds() > evolver.maxSecondsToRunWithoutImprovement/2 {
+				if children.len() >= 20 || children.len() >= 10 &&
+					elapsedSeconds > evolver.maxSecondsToRunWithoutImprovement/2 {
 					evolver.pool.truncateAndAddAll(children.items)
 
 					bestParent := evolver.pool.getBest()
-					children.reset()
+					children.reset(bestParent)
 					children.addItem(bestParent)
 				}
 			}
@@ -291,6 +295,7 @@ func (evolver *evolver) incrementStrategyUseCount(candidate, bestEver *sequenceI
 }
 
 func (evolver *evolver) initialize() {
+	evolver.maxStrategySuccess = initialStrategySuccess + 1
 	evolver.random = createRandomNumberGenerator()
 	evolver.initializeChannels(evolver.geneSet, evolver.numberOfGenesPerChromosome)
 }
@@ -323,30 +328,29 @@ func (evolver *evolver) initializePool(numberOfChromosomes int, display chan *se
 	evolver.numberOfImprovements = 1
 	evolver.randomParent = make(chan *sequenceInfo, 10)
 	go func() {
+		rand := 0
 		for {
+			numberOfImprovements := evolver.numberOfImprovements
 			select {
 			case <-evolver.quit:
 				evolver.quit <- true
 				return
 			default:
-
-				sendBestParent := evolver.random.Intn(evolver.numberOfImprovements) <= evolver.successParentIsBestParentCount
-				if sendBestParent {
-					parent := evolver.pool.getBest()
+				rand = evolver.random.Intn(numberOfImprovements)
+				if rand <= evolver.successParentIsBestParentCount {
 					select {
 					case <-evolver.quit:
 						evolver.quit <- true
 						return
-					case evolver.randomParent <- parent:
+					case evolver.randomParent <- evolver.pool.getBest():
 					}
 				}
 
-				parent := evolver.pool.getRandomItem()
 				select {
 				case <-evolver.quit:
 					evolver.quit <- true
 					return
-				case evolver.randomParent <- parent:
+				case evolver.randomParent <- evolver.pool.getRandomItem():
 				}
 			}
 		}
