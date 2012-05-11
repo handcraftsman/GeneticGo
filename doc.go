@@ -39,6 +39,9 @@
 // 	geneSet := "abc123..." // you decide the set of valid genes
 // 	numberOfGenesInAChromosome := 1 // you decide
 // 	
+// solver.NumberOfConcurrentEvolvers = 4 // you decide, defaults to 1
+// solver.MaxProcs // you decide, defaults to 1
+//
 // if your problem can be solved with a fixed number of genes:
 // 
 // 	numberOfChromosomes := 10 // you decide
