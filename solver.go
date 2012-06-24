@@ -385,16 +385,21 @@ func (solver *Solver) printStrategyUsage() {
 		return
 	}
 
+	var multiplier = 100
+	if solver.numberOfImprovements == 0 {
+		solver.numberOfImprovements = 1
+		multiplier = 1
+	}
 	fmt.Println("\nsuccessful strategy usage:")
 	for _, strategy := range solver.strategies {
 		fmt.Println(
 			strategy.name, "\t",
 			strategy.successCount, "\t",
-			100*strategy.successCount/solver.numberOfImprovements, "%")
+			multiplier*strategy.successCount/solver.numberOfImprovements, "%")
 	}
 	fmt.Println()
 
 	fmt.Println("\nNew champions were children of the reigning champion",
-		100*solver.successParentIsBestParentCount/solver.numberOfImprovements,
+		multiplier*solver.successParentIsBestParentCount/solver.numberOfImprovements,
 		"% of the time.")
 }
