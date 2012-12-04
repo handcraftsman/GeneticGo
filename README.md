@@ -6,8 +6,8 @@ This genetic solver adaptively adjusts the strategies being used to those that a
 
 GeneticGo is compatible with Go 1. Add it to your package repository:
 
-	go get "github.com/handcraftsman/GeneticGo"
 	go get "github.com/handcraftsman/Random"
+	go get "github.com/handcraftsman/GeneticGo"
 
 then use it in your program:
 
