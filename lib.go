@@ -1,14 +1,18 @@
 package genetic
 
 import (
-	//rnd "github.com/handcraftsman/Random"
+	rnd "github.com/handcraftsman/Random"
 	"math/rand"
+	"runtime"
 	s "sort"
 	"time"
 )
 
 func createRandomNumberGenerator() randomSource {
-	//return rnd.NewRandom()
+	procs := runtime.GOMAXPROCS(-1)
+	if procs > 1 {
+		return rnd.NewRandom()
+	}
 	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 

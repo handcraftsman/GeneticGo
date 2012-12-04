@@ -7,6 +7,7 @@
 // GeneticGo is compatible with Go 1. Add it to your package repository:
 //
 //     go get "github.com/handcraftsman/GeneticGo"
+//     go get "github.com/handcraftsman/Random"
 //
 // then use it in your program:
 // 
