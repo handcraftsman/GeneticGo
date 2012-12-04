@@ -7,6 +7,7 @@ This genetic solver adaptively adjusts the strategies being used to those that a
 GeneticGo is compatible with Go 1. Add it to your package repository:
 
 	go get "github.com/handcraftsman/GeneticGo"
+	go get "github.com/handcraftsman/Random"
 
 then use it in your program:
 
@@ -36,7 +37,7 @@ then use it in your program:
 	numberOfGenesInAChromosome := 1 // you decide
 	
 	solver.NumberOfConcurrentEvolvers = 4 // you decide, defaults to 1
-	solver.MaxProcs // you decide, defaults to 1	
+	solver.MaxProcs = 4 // you decide, defaults to 1	
 	
 if your problem can be solved with a fixed number of genes:
 
